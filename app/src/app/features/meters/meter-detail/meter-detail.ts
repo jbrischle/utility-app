@@ -45,60 +45,13 @@ interface Stats {
   styleUrl: './meter-detail.css',
 })
 export class MeterDetail {
-  private readonly store = inject(LocalStore);
-  private readonly usage = inject(UsageService);
-  private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
-
   readonly labels = UTILITY_LABELS;
-  readonly id = this.route.snapshot.paramMap.get('id')!;
-  private readonly now = new Date();
-
-  readonly meter = computed(() => this.store.meterById(this.id));
   readonly isElectricity = computed(() => this.meter()?.type === 'electricity');
-  readonly notFound = computed(() => this.store.ready() && !this.meter());
-
   readonly granularity = signal<Granularity>('interval');
   readonly confirmDeleteMeter = signal(false);
   readonly confirmDeleteReading = signal<string | null>(null);
   readonly viewPhotoUrl = signal<string | null>(null);
   readonly photoUrls = signal<Map<string, string>>(new Map());
-
-  private readonly readings = computed(() => this.store.readingsForMeter(this.id));
-
-  /** Readings annotated with usage, newest first for the log table. */
-  readonly rows = computed<ReadingWithUsage[]>(() =>
-    [...this.usage.withUsage(this.readings())].reverse(),
-  );
-
-  readonly hasEnoughData = computed(() => this.readings().length >= 2);
-
-  readonly chartLabels = computed<string[]>(() => {
-    if (this.granularity() === 'monthly') {
-      return this.usage.monthlyTotals(this.readings()).map((m) => this.formatMonth(m.label));
-    }
-    const annotated = this.usage.withUsage(this.readings());
-    return annotated.slice(1).map((r) =>
-      new Date(r.reading.readAt).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-      }),
-    );
-  });
-
-  private seriesData(selector: ValueFn, key: 'usage' | 'producedUsage'): number[] {
-    const readings = this.readings();
-    if (this.granularity() === 'monthly') {
-      return this.usage
-        .monthlyTotals(readings, selector)
-        .map((m) => Math.round(m.total * 100) / 100);
-    }
-    return this.usage
-      .withUsage(readings)
-      .slice(1)
-      .map((r) => Math.round((r[key] ?? 0) * 100) / 100);
-  }
-
   readonly chartSeries = computed<ChartSeries[]>(() => {
     const consumedColor = this.isElectricity()
       ? '#f5b544'
@@ -121,32 +74,34 @@ export class MeterDetail {
     }
     return series;
   });
-
-  private computeStats(selector: ValueFn): Stats {
-    const readings = this.readings();
-    const monthStart = startOfMonth(this.now);
-    const nextMonth = addMonths(monthStart, 1);
-    const prevMonth = addMonths(monthStart, -1);
-    const weekStart = startOfWeek(this.now);
-    const yearStart = new Date(this.now.getFullYear(), 0, 1);
-    const tomorrow = addDays(startOfDay(this.now), 1);
-
-    const thisMonth = this.usage.totalForRange(readings, monthStart, nextMonth, selector);
-    const lastMonth = this.usage.totalForRange(readings, prevMonth, monthStart, selector);
-    const elapsedDays = daysBetween(monthStart, tomorrow);
-
-    return {
-      thisMonth,
-      lastMonth,
-      deltaPct: lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : null,
-      perDayAvg: thisMonth / elapsedDays,
-      weekTotal: this.usage.totalForRange(readings, weekStart, tomorrow, selector),
-      yearTotal: this.usage.totalForRange(readings, yearStart, tomorrow, selector),
-    };
-  }
-
   readonly stats = computed<Stats>(() => this.computeStats(CONSUMED));
   readonly producedStats = computed<Stats>(() => this.computeStats(PRODUCED));
+  private readonly store = inject(LocalStore);
+  readonly meter = computed(() => this.store.meterById(this.id));
+  readonly notFound = computed(() => this.store.ready() && !this.meter());
+  private readonly usage = inject(UsageService);
+  private readonly route = inject(ActivatedRoute);
+  readonly id = this.route.snapshot.paramMap.get('id')!;
+  private readonly router = inject(Router);
+  private readonly now = new Date();
+  private readonly readings = computed(() => this.store.readingsForMeter(this.id));
+  /** Readings annotated with usage, newest first for the log table. */
+  readonly rows = computed<ReadingWithUsage[]>(() =>
+    [...this.usage.withUsage(this.readings())].reverse(),
+  );
+  readonly hasEnoughData = computed(() => this.readings().length >= 2);
+  readonly chartLabels = computed<string[]>(() => {
+    if (this.granularity() === 'monthly') {
+      return this.usage.monthlyTotals(this.readings()).map((m) => this.formatMonth(m.label));
+    }
+    const annotated = this.usage.withUsage(this.readings());
+    return annotated.slice(1).map((r) =>
+      new Date(r.reading.readAt).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      }),
+    );
+  });
 
   constructor() {
     effect(() => {
@@ -186,6 +141,7 @@ export class MeterDetail {
     const url = this.photoUrl(photoId);
     if (url) this.viewPhotoUrl.set(url);
   }
+
   closePhoto(): void {
     this.viewPhotoUrl.set(null);
   }
@@ -207,5 +163,41 @@ export class MeterDetail {
   async deleteReading(id: string): Promise<void> {
     await this.store.deleteReading(id);
     this.confirmDeleteReading.set(null);
+  }
+
+  private seriesData(selector: ValueFn, key: 'usage' | 'producedUsage'): number[] {
+    const readings = this.readings();
+    if (this.granularity() === 'monthly') {
+      return this.usage
+        .monthlyTotals(readings, selector)
+        .map((m) => Math.round(m.total * 100) / 100);
+    }
+    return this.usage
+      .withUsage(readings)
+      .slice(1)
+      .map((r) => Math.round((r[key] ?? 0) * 100) / 100);
+  }
+
+  private computeStats(selector: ValueFn): Stats {
+    const readings = this.readings();
+    const monthStart = startOfMonth(this.now);
+    const nextMonth = addMonths(monthStart, 1);
+    const prevMonth = addMonths(monthStart, -1);
+    const weekStart = startOfWeek(this.now);
+    const yearStart = new Date(this.now.getFullYear(), 0, 1);
+    const tomorrow = addDays(startOfDay(this.now), 1);
+
+    const thisMonth = this.usage.totalForRange(readings, monthStart, nextMonth, selector);
+    const lastMonth = this.usage.totalForRange(readings, prevMonth, monthStart, selector);
+    const elapsedDays = daysBetween(monthStart, tomorrow);
+
+    return {
+      thisMonth,
+      lastMonth,
+      deltaPct: lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : null,
+      perDayAvg: thisMonth / elapsedDays,
+      weekTotal: this.usage.totalForRange(readings, weekStart, tomorrow, selector),
+      yearTotal: this.usage.totalForRange(readings, yearStart, tomorrow, selector),
+    };
   }
 }
