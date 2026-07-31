@@ -1,4 +1,13 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { form, FormField, min, required, submit } from '@angular/forms/signals';
 import { LocalStore } from '../../../data/local-store';
@@ -71,7 +80,13 @@ export class ReadingForm {
   private removedExisting = false;
   private patched = false;
 
+  private readonly valueInput =
+    viewChild<ElementRef<HTMLInputElement>>('valueInput');
+
   constructor() {
+    if (!this.isEdit) {
+      afterNextRender(() => this.valueInput()?.nativeElement.focus());
+    }
     effect(() => {
       if (!this.store.ready()) return;
       if (!this.store.meterById(this.meterId)) {
