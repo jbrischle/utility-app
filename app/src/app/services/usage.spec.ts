@@ -87,18 +87,10 @@ describe('UsageService', () => {
       reading('b', 31, '2026-02-01T00:00:00Z'), // 1/day across January (31 days)
     ];
     // Whole of January.
-    const janTotal = svc.totalForRange(
-      readings,
-      new Date(2026, 0, 1),
-      new Date(2026, 1, 1),
-    );
+    const janTotal = svc.totalForRange(readings, new Date(2026, 0, 1), new Date(2026, 1, 1));
     expect(janTotal).toBeCloseTo(31);
     // First 10 days of January -> 10 units.
-    const firstTen = svc.totalForRange(
-      readings,
-      new Date(2026, 0, 1),
-      new Date(2026, 0, 11),
-    );
+    const firstTen = svc.totalForRange(readings, new Date(2026, 0, 1), new Date(2026, 0, 11));
     expect(firstTen).toBeCloseTo(10);
   });
 
@@ -132,5 +124,18 @@ describe('UsageService', () => {
     const feb = monthly.find((m) => m.label === '2026-02');
     expect(jan?.total).toBeCloseTo(31);
     expect(feb?.total).toBeCloseTo(28);
+  });
+
+  it('aggregates yearly totals', () => {
+    const readings = [
+      reading('a', 0, '2025-01-01T00:00:00Z'),
+      reading('b', 100, '2026-01-01T00:00:00Z'),
+      reading('c', 250, '2027-01-01T00:00:00Z'),
+    ];
+    const yearly = svc.yearlyTotals(readings);
+    const y2025 = yearly.find((y) => y.label === '2025');
+    const y2026 = yearly.find((y) => y.label === '2026');
+    expect(y2025?.total).toBeCloseTo(100);
+    expect(y2026?.total).toBeCloseTo(150);
   });
 });

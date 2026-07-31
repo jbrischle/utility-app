@@ -7,7 +7,7 @@ import { ChartSeries, UsageChart } from '../../../shared/usage-chart/usage-chart
 import { UTILITY_LABELS } from '../../../models/utility-type';
 import { ReadingWithUsage } from '../../../models/reading.model';
 
-type Granularity = 'interval' | 'monthly';
+type Granularity = 'interval' | 'monthly' | 'yearly';
 
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -53,12 +53,6 @@ export class MeterDetail {
   readonly photoUrls = signal<Map<string, string>>(new Map());
   readonly stats = computed<Stats>(() => this.computeStats(CONSUMED));
   readonly producedStats = computed<Stats>(() => this.computeStats(PRODUCED));
-  private readonly store = inject(LocalStore);
-  readonly notFound = computed(() => this.store.ready() && !this.meter());
-  private readonly usage = inject(UsageService);
-  private readonly route = inject(ActivatedRoute);
-  readonly id = this.route.snapshot.paramMap.get('id')!;
-  readonly meter = computed(() => this.store.meterById(this.id));
   readonly isElectricity = computed(() => this.meter()?.type === 'electricity');
   readonly chartSeries = computed<ChartSeries[]>(() => {
     const consumedColor = this.isElectricity()
@@ -82,6 +76,12 @@ export class MeterDetail {
     }
     return series;
   });
+  private readonly store = inject(LocalStore);
+  readonly meter = computed(() => this.store.meterById(this.id));
+  readonly notFound = computed(() => this.store.ready() && !this.meter());
+  private readonly usage = inject(UsageService);
+  private readonly route = inject(ActivatedRoute);
+  readonly id = this.route.snapshot.paramMap.get('id')!;
   private readonly router = inject(Router);
   private readonly now = new Date();
   private readonly readings = computed(() => this.store.readingsForMeter(this.id));
@@ -93,6 +93,9 @@ export class MeterDetail {
   readonly chartLabels = computed<string[]>(() => {
     if (this.granularity() === 'monthly') {
       return this.usage.monthlyTotals(this.readings()).map((m) => this.formatMonth(m.label));
+    }
+    if (this.granularity() === 'yearly') {
+      return this.usage.yearlyTotals(this.readings()).map((m) => m.label);
     }
     const annotated = this.usage.withUsage(this.readings());
     return annotated.slice(1).map((r) =>
@@ -170,6 +173,11 @@ export class MeterDetail {
     if (this.granularity() === 'monthly') {
       return this.usage
         .monthlyTotals(readings, selector)
+        .map((m) => Math.round(m.total * 100) / 100);
+    }
+    if (this.granularity() === 'yearly') {
+      return this.usage
+        .yearlyTotals(readings, selector)
         .map((m) => Math.round(m.total * 100) / 100);
     }
     return this.usage

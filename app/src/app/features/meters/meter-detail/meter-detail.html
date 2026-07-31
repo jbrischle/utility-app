@@ -30,9 +30,7 @@
           >+ Add reading</a
         >
         <a [routerLink]="['/meters', m.id, 'edit']" class="btn btn-ghost">Edit</a>
-        <button class="btn btn-danger" (click)="confirmDeleteMeter.set(true)">
-          Delete
-        </button>
+        <button class="btn btn-danger" (click)="confirmDeleteMeter.set(true)">Delete</button>
       </div>
     </div>
   </div>
@@ -45,15 +43,10 @@
     <div class="card stat">
       <span class="stat-label">This month</span>
       <span class="stat-value"
-        >{{ stats().thisMonth | number: '1.0-2' }}
-        <span class="unit">{{ m.unit }}</span></span
+        >{{ stats().thisMonth | number: '1.0-2' }} <span class="unit">{{ m.unit }}</span></span
       >
       @if (stats().deltaPct !== null) {
-        <span
-          class="delta"
-          [class.up]="stats().deltaPct! > 0"
-          [class.down]="stats().deltaPct! < 0"
-        >
+        <span class="delta" [class.up]="stats().deltaPct! > 0" [class.down]="stats().deltaPct! < 0">
           {{ stats().deltaPct! > 0 ? '▲' : '▼' }}
           {{ stats().deltaPct! | number: '1.0-1' }}% vs last month
         </span>
@@ -64,8 +57,7 @@
     <div class="card stat">
       <span class="stat-label">Last month</span>
       <span class="stat-value"
-        >{{ stats().lastMonth | number: '1.0-2' }}
-        <span class="unit">{{ m.unit }}</span></span
+        >{{ stats().lastMonth | number: '1.0-2' }} <span class="unit">{{ m.unit }}</span></span
       >
       <span class="muted small"
         >{{ stats().perDayAvg | number: '1.0-2' }} {{ m.unit }}/day this month</span
@@ -74,15 +66,13 @@
     <div class="card stat">
       <span class="stat-label">This week</span>
       <span class="stat-value"
-        >{{ stats().weekTotal | number: '1.0-2' }}
-        <span class="unit">{{ m.unit }}</span></span
+        >{{ stats().weekTotal | number: '1.0-2' }} <span class="unit">{{ m.unit }}</span></span
       >
     </div>
     <div class="card stat">
       <span class="stat-label">This year</span>
       <span class="stat-value"
-        >{{ stats().yearTotal | number: '1.0-2' }}
-        <span class="unit">{{ m.unit }}</span></span
+        >{{ stats().yearTotal | number: '1.0-2' }} <span class="unit">{{ m.unit }}</span></span
       >
     </div>
   </section>
@@ -112,8 +102,7 @@
           <span class="unit">{{ m.unit }}</span></span
         >
         <span class="muted small"
-          >{{ producedStats().perDayAvg | number: '1.0-2' }} {{ m.unit }}/day this
-          month</span
+          >{{ producedStats().perDayAvg | number: '1.0-2' }} {{ m.unit }}/day this month</span
         >
       </div>
       <div class="card stat">
@@ -152,6 +141,13 @@
         >
           Monthly
         </button>
+        <button
+          class="toggle-btn"
+          [class.active]="granularity() === 'yearly'"
+          (click)="setGranularity('yearly')"
+        >
+          Yearly
+        </button>
       </div>
     </div>
     @if (hasEnoughData()) {
@@ -159,7 +155,7 @@
         [labels]="chartLabels()"
         [series]="chartSeries()"
         [unit]="m.unit"
-        [kind]="granularity() === 'monthly' ? 'bar' : 'line'"
+        [kind]="granularity() === 'interval' ? 'line' : 'bar'"
       />
     } @else {
       <div class="empty">
@@ -184,9 +180,7 @@
           <thead>
             <tr>
               <th>Date</th>
-              <th class="num">
-                {{ isElectricity() ? 'Consumed' : 'Reading' }} ({{ m.unit }})
-              </th>
+              <th class="num">{{ isElectricity() ? 'Consumed' : 'Reading' }} ({{ m.unit }})</th>
               <th class="num">Usage</th>
               @if (isElectricity()) {
                 <th class="num">Produced ({{ m.unit }})</th>
@@ -273,13 +267,11 @@
       >
         <h3>Delete this meter?</h3>
         <p>
-          “{{ m.name }}” and all of its readings will be removed from all views. This
-          cannot be undone from the app.
+          “{{ m.name }}” and all of its readings will be removed from all views. This cannot be
+          undone from the app.
         </p>
         <div class="row wrap">
-          <button class="btn btn-ghost" (click)="confirmDeleteMeter.set(false)">
-            Cancel
-          </button>
+          <button class="btn btn-ghost" (click)="confirmDeleteMeter.set(false)">Cancel</button>
           <button class="btn btn-danger" (click)="deleteMeter()">Delete meter</button>
         </div>
       </div>
@@ -298,12 +290,8 @@
         <h3>Delete this reading?</h3>
         <p>This reading will be removed from the history and all calculations.</p>
         <div class="row wrap">
-          <button class="btn btn-ghost" (click)="confirmDeleteReading.set(null)">
-            Cancel
-          </button>
-          <button class="btn btn-danger" (click)="deleteReading(rid)">
-            Delete reading
-          </button>
+          <button class="btn btn-ghost" (click)="confirmDeleteReading.set(null)">Cancel</button>
+          <button class="btn btn-danger" (click)="deleteReading(rid)">Delete reading</button>
         </div>
       </div>
     </div>

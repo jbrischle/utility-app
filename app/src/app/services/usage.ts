@@ -76,10 +76,7 @@ export class UsageService {
    * Spreads each interval's usage evenly across the calendar days it spans.
    * Returns a map of calendar-day ordinal -> usage on that day.
    */
-  dailyBuckets(
-    readings: Reading[],
-    selector: ValueFn = CONSUMED,
-  ): Map<number, number> {
+  dailyBuckets(readings: Reading[], selector: ValueFn = CONSUMED): Map<number, number> {
     const sorted = [...readings].sort((a, b) => a.readAt.localeCompare(b.readAt));
     const buckets = new Map<number, number>();
     for (let i = 1; i < sorted.length; i++) {
@@ -102,12 +99,7 @@ export class UsageService {
   }
 
   /** Total usage attributed to calendar days within [start, end). */
-  totalForRange(
-    readings: Reading[],
-    start: Date,
-    end: Date,
-    selector: ValueFn = CONSUMED,
-  ): number {
+  totalForRange(readings: Reading[], start: Date, end: Date, selector: ValueFn = CONSUMED): number {
     const startDay = Math.floor(
       Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()) / 86_400_000,
     );
@@ -124,13 +116,14 @@ export class UsageService {
     return total;
   }
 
-  /** Aggregates daily buckets into monthly totals, returned sorted ascending. */
-  monthlyTotals(
+  /** Aggregates daily-distributed usage into buckets keyed by a period function. */
+  private periodTotals(
     readings: Reading[],
-    selector: ValueFn = CONSUMED,
+    selector: ValueFn,
+    keyFn: (date: Date) => string,
   ): { label: string; total: number }[] {
     const sorted = [...readings].sort((a, b) => a.readAt.localeCompare(b.readAt));
-    const monthly = new Map<string, number>();
+    const totals = new Map<string, number>();
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1];
       const curr = sorted[i];
@@ -140,13 +133,32 @@ export class UsageService {
       const span = Math.max(1, endDay - startDay);
       const perDay = usage / span;
       for (let d = startDay; d < Math.max(endDay, startDay + 1); d++) {
-        const date = new Date(d * 86_400_000);
-        const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
-        monthly.set(key, (monthly.get(key) ?? 0) + perDay);
+        const key = keyFn(new Date(d * 86_400_000));
+        totals.set(key, (totals.get(key) ?? 0) + perDay);
       }
     }
-    return [...monthly.entries()]
+    return [...totals.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([label, total]) => ({ label, total }));
+  }
+
+  /** Aggregates usage into monthly totals, returned sorted ascending. */
+  monthlyTotals(
+    readings: Reading[],
+    selector: ValueFn = CONSUMED,
+  ): { label: string; total: number }[] {
+    return this.periodTotals(
+      readings,
+      selector,
+      (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
+    );
+  }
+
+  /** Aggregates usage into yearly totals, returned sorted ascending. */
+  yearlyTotals(
+    readings: Reading[],
+    selector: ValueFn = CONSUMED,
+  ): { label: string; total: number }[] {
+    return this.periodTotals(readings, selector, (d) => `${d.getUTCFullYear()}`);
   }
 }
