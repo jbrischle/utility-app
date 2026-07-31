@@ -9,8 +9,13 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { LocalStore } from '../../../data/local-store';
-import { UsageService } from '../../../services/usage';
-import { UsageChart } from '../../../shared/usage-chart/usage-chart';
+import {
+  UsageService,
+  CONSUMED,
+  PRODUCED,
+  ValueFn,
+} from '../../../services/usage';
+import { UsageChart, ChartSeries } from '../../../shared/usage-chart/usage-chart';
 import { UTILITY_LABELS } from '../../../models/utility-type';
 import { ReadingWithUsage } from '../../../models/reading.model';
 
@@ -62,6 +67,7 @@ export class MeterDetail {
   private readonly now = new Date();
 
   readonly meter = computed(() => this.store.meterById(this.id));
+  readonly isElectricity = computed(() => this.meter()?.type === 'electricity');
   readonly notFound = computed(() => this.store.ready() && !this.meter());
 
   readonly granularity = signal<Granularity>('interval');
@@ -98,23 +104,43 @@ export class MeterDetail {
       );
   });
 
-  readonly chartData = computed<number[]>(() => {
+  private seriesData(selector: ValueFn, key: 'usage' | 'producedUsage'): number[] {
+    const readings = this.readings();
     if (this.granularity() === 'monthly') {
       return this.usage
-        .monthlyTotals(this.readings())
+        .monthlyTotals(readings, selector)
         .map((m) => Math.round(m.total * 100) / 100);
     }
     return this.usage
-      .withUsage(this.readings())
+      .withUsage(readings)
       .slice(1)
-      .map((r) => Math.round((r.usage ?? 0) * 100) / 100);
+      .map((r) => Math.round((r[key] ?? 0) * 100) / 100);
+  }
+
+  readonly chartSeries = computed<ChartSeries[]>(() => {
+    const consumedColor = this.isElectricity()
+      ? '#f5b544'
+      : this.meter()?.type === 'water'
+        ? '#38bdf8'
+        : '#4f8cff';
+    const series: ChartSeries[] = [
+      {
+        label: this.isElectricity() ? 'Consumed' : 'Usage',
+        data: this.seriesData(CONSUMED, 'usage'),
+        color: consumedColor,
+      },
+    ];
+    if (this.isElectricity()) {
+      series.push({
+        label: 'Produced',
+        data: this.seriesData(PRODUCED, 'producedUsage'),
+        color: '#4ade80',
+      });
+    }
+    return series;
   });
 
-  readonly chartColor = computed(() =>
-    this.meter()?.type === 'water' ? '#38bdf8' : '#f5b544',
-  );
-
-  readonly stats = computed<Stats>(() => {
+  private computeStats(selector: ValueFn): Stats {
     const readings = this.readings();
     const monthStart = startOfMonth(this.now);
     const nextMonth = addMonths(monthStart, 1);
@@ -123,8 +149,8 @@ export class MeterDetail {
     const yearStart = new Date(this.now.getFullYear(), 0, 1);
     const tomorrow = addDays(startOfDay(this.now), 1);
 
-    const thisMonth = this.usage.totalForRange(readings, monthStart, nextMonth);
-    const lastMonth = this.usage.totalForRange(readings, prevMonth, monthStart);
+    const thisMonth = this.usage.totalForRange(readings, monthStart, nextMonth, selector);
+    const lastMonth = this.usage.totalForRange(readings, prevMonth, monthStart, selector);
     const elapsedDays = daysBetween(monthStart, tomorrow);
 
     return {
@@ -132,10 +158,13 @@ export class MeterDetail {
       lastMonth,
       deltaPct: lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : null,
       perDayAvg: thisMonth / elapsedDays,
-      weekTotal: this.usage.totalForRange(readings, weekStart, tomorrow),
-      yearTotal: this.usage.totalForRange(readings, yearStart, tomorrow),
+      weekTotal: this.usage.totalForRange(readings, weekStart, tomorrow, selector),
+      yearTotal: this.usage.totalForRange(readings, yearStart, tomorrow, selector),
     };
-  });
+  }
+
+  readonly stats = computed<Stats>(() => this.computeStats(CONSUMED));
+  readonly producedStats = computed<Stats>(() => this.computeStats(PRODUCED));
 
   constructor() {
     effect(() => {

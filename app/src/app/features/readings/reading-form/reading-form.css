@@ -56,3 +56,10 @@
   max-width: 440px;
   width: 100%;
 }
+.warn-list {
+  margin: 8px 0 16px;
+  padding-left: 20px;
+}
+.warn-list li {
+  margin-bottom: 4px;
+}

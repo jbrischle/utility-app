@@ -1,12 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { UsageService, calendarDay } from './usage';
+import { UsageService, calendarDay, PRODUCED } from './usage';
 import { Reading } from '../models/reading.model';
 
-function reading(id: string, value: number, readAt: string): Reading {
+function reading(
+  id: string,
+  value: number,
+  readAt: string,
+  produced: number | null = null,
+): Reading {
   return {
     id,
     meterId: 'm1',
     value,
+    produced,
     readAt,
     note: '',
     photoId: null,
@@ -94,6 +100,25 @@ describe('UsageService', () => {
       new Date(2026, 0, 11),
     );
     expect(firstTen).toBeCloseTo(10);
+  });
+
+  it('computes produced usage separately with the PRODUCED selector', () => {
+    const readings = [
+      reading('a', 100, '2026-01-01T00:00:00Z', 20),
+      reading('b', 130, '2026-02-01T00:00:00Z', 50),
+    ];
+    const result = svc.withUsage(readings);
+    expect(result[1].usage).toBe(30);
+    expect(result[1].producedUsage).toBe(30);
+    expect(svc.totalConsumption(readings, PRODUCED)).toBe(30);
+  });
+
+  it('leaves producedUsage null when production is not tracked', () => {
+    const readings = [
+      reading('a', 100, '2026-01-01T00:00:00Z'),
+      reading('b', 130, '2026-02-01T00:00:00Z'),
+    ];
+    expect(svc.withUsage(readings)[1].producedUsage).toBeNull();
   });
 
   it('aggregates monthly totals', () => {

@@ -17,11 +17,19 @@
     <section class="summary-grid">
       @for (s of summaries(); track s.type) {
         <div class="card summary summary-{{ s.type }}">
-          <span class="summary-label">{{ s.label }} this month</span>
+          <span class="summary-label"
+            >{{ s.label }}
+            {{ s.producedMonthTotal !== null ? 'consumed ' : '' }}this month</span
+          >
           <span class="summary-value"
             >{{ s.monthTotal | number: '1.0-2' }}
             <span class="unit">{{ s.unit }}</span></span
           >
+          @if (s.producedMonthTotal !== null) {
+            <span class="produced-line"
+              >Produced {{ s.producedMonthTotal | number: '1.0-2' }} {{ s.unit }}</span
+            >
+          }
           <span class="muted small"
             >{{ s.meterCount }} {{ s.meterCount === 1 ? 'meter' : 'meters' }}</span
           >

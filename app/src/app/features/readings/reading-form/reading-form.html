@@ -1,7 +1,7 @@
 @if (notFound()) {
   <div class="card empty">
     <p>Meter or reading not found.</p>
-    <a routerLink="/meters" class="btn">Back to meters</a>
+    <a class="btn" routerLink="/meters">Back to meters</a>
   </div>
 } @else {
   <div class="page-head">
@@ -14,16 +14,22 @@
     }
   </div>
 
-  <form class="card form" (submit)="onSubmit($event)">
+  <form (submit)="onSubmit($event)" class="card form">
     <div class="field">
-      <label for="value">Meter reading (total shown on the meter)</label>
+      <label for="value">
+        @if (isElectricity()) {
+          Consumed (total shown on the meter)
+        } @else {
+          Meter reading (total shown on the meter)
+        }
+      </label>
       <input
-        id="value"
-        type="number"
-        inputmode="decimal"
-        step="any"
         [formField]="readingForm.value"
+        id="value"
+        inputmode="decimal"
         placeholder="e.g. 14523"
+        step="any"
+        type="number"
       />
       @if (readingForm.value().touched() && readingForm.value().invalid()) {
         @for (error of readingForm.value().errors(); track error.kind) {
@@ -32,9 +38,27 @@
       }
     </div>
 
+    @if (isElectricity()) {
+      <div class="field">
+        <label for="produced">Produced (fed into grid)</label>
+        <input
+          [formField]="readingForm.produced"
+          id="produced"
+          inputmode="decimal"
+          placeholder="e.g. 3200"
+          step="any"
+          type="number"
+        />
+        @if (submitAttempted() && producedInvalid()) {
+          <span
+            class="field-error">Enter the produced total (zero or greater).</span>
+        }
+      </div>
+    }
+
     <div class="field">
       <label for="readAt">Date</label>
-      <input id="readAt" type="date" [formField]="readingForm.readAt" />
+      <input [formField]="readingForm.readAt" id="readAt" type="date"/>
       @if (readingForm.readAt().touched() && readingForm.readAt().invalid()) {
         @for (error of readingForm.readAt().errors(); track error.kind) {
           <span class="field-error">{{ error.message }}</span>
@@ -44,26 +68,27 @@
 
     <div class="field">
       <label for="note">Note <span class="muted">(optional)</span></label>
-      <textarea id="note" [formField]="readingForm.note"></textarea>
+      <textarea [formField]="readingForm.note" id="note"></textarea>
     </div>
 
     <div class="field">
       <label>Photo <span class="muted">(optional)</span></label>
       @if (hasPhoto()) {
         <div class="photo-preview">
-          <img [src]="previewUrl()" alt="Meter reading photo" />
-          <button type="button" class="btn btn-danger btn-sm" (click)="removePhoto()">
+          <img [src]="previewUrl()" alt="Meter reading photo"/>
+          <button (click)="removePhoto()" class="btn btn-danger btn-sm"
+                  type="button">
             Remove photo
           </button>
         </div>
       } @else {
         <label class="file-drop">
           <input
-            type="file"
+            (change)="onFileSelected($event)"
             accept="image/*"
             capture="environment"
-            (change)="onFileSelected($event)"
             hidden
+            type="file"
           />
           <span>📷 Add a photo of the meter</span>
         </label>
@@ -72,9 +97,9 @@
 
     <div class="row wrap actions">
       <button
-        type="submit"
+        [disabled]="saving() || readingForm().invalid() || producedInvalid()"
         class="btn btn-primary"
-        [disabled]="saving() || readingForm().invalid()"
+        type="submit"
       >
         {{ isEdit ? 'Save changes' : 'Save reading' }}
       </button>
@@ -83,25 +108,27 @@
   </form>
 
   @if (showWarning()) {
-    <div class="modal-backdrop" (click)="cancelWarning()">
+    <div (click)="cancelWarning()" class="modal-backdrop">
       <div
+        (click)="$event.stopPropagation()"
+        aria-labelledby="warn-title"
+        aria-modal="true"
         class="modal card"
         role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="warn-title"
-        (click)="$event.stopPropagation()"
       >
         <h3 id="warn-title">⚠️ Reading looks low</h3>
-        <p>
-          The value you entered ({{ model().value }}) is lower than the previous
-          reading ({{ previousValue() }}). This will produce negative usage, which
-          usually means a typo.
-        </p>
+        <p>This will produce negative usage, which usually means a typo:</p>
+        <ul class="warn-list">
+          @for (msg of warningMessages(); track msg) {
+            <li>{{ msg }}</li>
+          }
+        </ul>
         <div class="row wrap actions">
-          <button type="button" class="btn btn-ghost" (click)="cancelWarning()">
+          <button (click)="cancelWarning()" class="btn btn-ghost" type="button">
             Go back and fix
           </button>
-          <button type="button" class="btn btn-danger" (click)="confirmSaveAnyway()">
+          <button (click)="confirmSaveAnyway()" class="btn btn-danger"
+                  type="button">
             Save anyway
           </button>
         </div>

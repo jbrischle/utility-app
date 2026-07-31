@@ -56,6 +56,7 @@ export class LocalStore {
     const all = await db.readings.toArray();
     const active = all
       .filter((r) => !r.deletedAt)
+      .map((r) => ({ ...r, produced: r.produced ?? null }))
       .sort((a, b) => a.readAt.localeCompare(b.readAt));
     this.readingsSig.set(active);
   }
@@ -131,7 +132,8 @@ export class LocalStore {
   }
 
   async getReading(id: string): Promise<Reading | undefined> {
-    return db.readings.get(id);
+    const reading = await db.readings.get(id);
+    return reading ? { ...reading, produced: reading.produced ?? null } : undefined;
   }
 
   async addReading(input: ReadingInput, photo?: Blob): Promise<Reading> {
@@ -144,6 +146,7 @@ export class LocalStore {
       id: uuid(),
       meterId: input.meterId,
       value: input.value,
+      produced: input.produced,
       readAt: input.readAt,
       note: input.note.trim(),
       photoId,
@@ -179,6 +182,7 @@ export class LocalStore {
     const updated: Reading = {
       ...existing,
       value: input.value,
+      produced: input.produced,
       readAt: input.readAt,
       note: input.note.trim(),
       photoId,

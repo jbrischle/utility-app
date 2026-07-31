@@ -41,6 +41,11 @@
 .small {
   font-size: 0.82rem;
 }
+.produced-line {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-success);
+}
 
 .meter-grid {
   display: grid;

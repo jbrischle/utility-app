@@ -24,11 +24,19 @@
   max-width: 640px;
 }
 
+.stats-heading {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  margin: 0 0 12px;
+}
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
+}
+.stat-value.produced {
+  color: var(--color-success);
 }
 .stat {
   display: flex;

@@ -2,7 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { LocalStore } from '../../data/local-store';
-import { UsageService } from '../../services/usage';
+import { UsageService, CONSUMED, PRODUCED } from '../../services/usage';
 import {
   UTILITY_LABELS,
   UTILITY_UNITS,
@@ -22,6 +22,7 @@ interface TypeSummary {
   label: string;
   unit: string;
   monthTotal: number;
+  producedMonthTotal: number | null;
   meterCount: number;
 }
 
@@ -70,13 +71,23 @@ export class Dashboard {
       const typeMeters = meters.filter((m) => m.type === type);
       const monthTotal = typeMeters.reduce((sum, m) => {
         const own = readings.filter((r) => r.meterId === m.id);
-        return sum + this.usage.totalForRange(own, monthStart, nextMonth);
+        return sum + this.usage.totalForRange(own, monthStart, nextMonth, CONSUMED);
       }, 0);
+      const producedMonthTotal =
+        type === 'electricity'
+          ? typeMeters.reduce((sum, m) => {
+              const own = readings.filter((r) => r.meterId === m.id);
+              return (
+                sum + this.usage.totalForRange(own, monthStart, nextMonth, PRODUCED)
+              );
+            }, 0)
+          : null;
       return {
         type,
         label: UTILITY_LABELS[type],
         unit: UTILITY_UNITS[type],
         monthTotal,
+        producedMonthTotal,
         meterCount: typeMeters.length,
       };
     });

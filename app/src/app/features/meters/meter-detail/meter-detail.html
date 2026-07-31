@@ -38,6 +38,9 @@
   </div>
 
   <!-- Summary / comparisons -->
+  @if (isElectricity()) {
+    <h2 class="stats-heading">Consumed (from grid)</h2>
+  }
   <section class="stats-grid">
     <div class="card stat">
       <span class="stat-label">This month</span>
@@ -84,6 +87,52 @@
     </div>
   </section>
 
+  @if (isElectricity()) {
+    <h2 class="stats-heading">Produced (fed in)</h2>
+    <section class="stats-grid">
+      <div class="card stat">
+        <span class="stat-label">This month</span>
+        <span class="stat-value produced"
+          >{{ producedStats().thisMonth | number: '1.0-2' }}
+          <span class="unit">{{ m.unit }}</span></span
+        >
+        @if (producedStats().deltaPct !== null) {
+          <span class="delta muted">
+            {{ producedStats().deltaPct! > 0 ? '▲' : '▼' }}
+            {{ producedStats().deltaPct! | number: '1.0-1' }}% vs last month
+          </span>
+        } @else {
+          <span class="muted small">No comparison yet</span>
+        }
+      </div>
+      <div class="card stat">
+        <span class="stat-label">Last month</span>
+        <span class="stat-value produced"
+          >{{ producedStats().lastMonth | number: '1.0-2' }}
+          <span class="unit">{{ m.unit }}</span></span
+        >
+        <span class="muted small"
+          >{{ producedStats().perDayAvg | number: '1.0-2' }} {{ m.unit }}/day this
+          month</span
+        >
+      </div>
+      <div class="card stat">
+        <span class="stat-label">This week</span>
+        <span class="stat-value produced"
+          >{{ producedStats().weekTotal | number: '1.0-2' }}
+          <span class="unit">{{ m.unit }}</span></span
+        >
+      </div>
+      <div class="card stat">
+        <span class="stat-label">This year</span>
+        <span class="stat-value produced"
+          >{{ producedStats().yearTotal | number: '1.0-2' }}
+          <span class="unit">{{ m.unit }}</span></span
+        >
+      </div>
+    </section>
+  }
+
   <!-- Chart -->
   <section class="card chart-card">
     <div class="row-between wrap">
@@ -108,9 +157,8 @@
     @if (hasEnoughData()) {
       <app-usage-chart
         [labels]="chartLabels()"
-        [data]="chartData()"
+        [series]="chartSeries()"
         [unit]="m.unit"
-        [color]="chartColor()"
         [kind]="granularity() === 'monthly' ? 'bar' : 'line'"
       />
     } @else {
@@ -136,8 +184,14 @@
           <thead>
             <tr>
               <th>Date</th>
-              <th class="num">Reading ({{ m.unit }})</th>
+              <th class="num">
+                {{ isElectricity() ? 'Consumed' : 'Reading' }} ({{ m.unit }})
+              </th>
               <th class="num">Usage</th>
+              @if (isElectricity()) {
+                <th class="num">Produced ({{ m.unit }})</th>
+                <th class="num">Prod. usage</th>
+              }
               <th>Note</th>
               <th>Photo</th>
               <th class="actions-col"></th>
@@ -157,6 +211,19 @@
                     >
                   }
                 </td>
+                @if (isElectricity()) {
+                  <td class="num">{{ row.reading.produced | number: '1.0-3' }}</td>
+                  <td class="num">
+                    @if (row.producedUsage === null) {
+                      <span class="muted">—</span>
+                    } @else {
+                      <span [class.negative]="row.producedUsage < 0"
+                        >{{ row.producedUsage > 0 ? '+' : ''
+                        }}{{ row.producedUsage | number: '1.0-2' }}</span
+                      >
+                    }
+                  </td>
+                }
                 <td class="note">{{ row.reading.note || '—' }}</td>
                 <td>
                   @if (row.reading.photoId && photoUrl(row.reading.photoId)) {

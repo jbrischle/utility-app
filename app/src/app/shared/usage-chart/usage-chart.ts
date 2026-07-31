@@ -10,6 +10,12 @@ import { Chart, ChartConfiguration, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
+export interface ChartSeries {
+  label: string;
+  data: number[];
+  color: string;
+}
+
 @Component({
   selector: 'app-usage-chart',
   template: '<canvas #canvas></canvas>',
@@ -21,9 +27,8 @@ export class UsageChart implements OnDestroy {
   readonly canvasRef =
     viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   readonly labels = input<string[]>([]);
-  readonly data = input<number[]>([]);
+  readonly series = input<ChartSeries[]>([]);
   readonly unit = input<string>('');
-  readonly color = input<string>('#4f8cff');
   readonly kind = input<'bar' | 'line'>('bar');
 
   private chart?: Chart;
@@ -31,51 +36,50 @@ export class UsageChart implements OnDestroy {
   constructor() {
     effect(() => {
       const labels = this.labels();
-      const data = this.data();
+      const series = this.series();
       const unit = this.unit();
-      const color = this.color();
       const kind = this.kind();
-      this.render(labels, data, unit, color, kind);
+      this.render(labels, series, unit, kind);
     });
   }
 
   private render(
     labels: string[],
-    data: number[],
+    series: ChartSeries[],
     unit: string,
-    color: string,
     kind: 'bar' | 'line',
   ): void {
     const canvas = this.canvasRef().nativeElement;
     const grid = 'rgba(255,255,255,0.08)';
     const tick = '#9aa7bd';
 
+    const datasets = series.map((s) => ({
+      label: s.label,
+      data: s.data,
+      backgroundColor: kind === 'bar' ? s.color : 'transparent',
+      borderColor: s.color,
+      borderWidth: 2,
+      tension: 0.25,
+      pointRadius: kind === 'line' ? 3 : 0,
+      pointBackgroundColor: s.color,
+      borderRadius: 4,
+    }));
+
     const config: ChartConfiguration = {
       type: kind,
-      data: {
-        labels,
-        datasets: [
-          {
-            label: `Usage (${unit})`,
-            data,
-            backgroundColor: kind === 'bar' ? color : 'transparent',
-            borderColor: color,
-            borderWidth: 2,
-            tension: 0.25,
-            pointRadius: kind === 'line' ? 3 : 0,
-            pointBackgroundColor: color,
-            borderRadius: 4,
-          },
-        ],
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
+          legend: {
+            display: series.length > 1,
+            labels: { color: tick },
+          },
           tooltip: {
             callbacks: {
-              label: (ctx) => `${ctx.formattedValue} ${unit}`,
+              label: (ctx) =>
+                `${ctx.dataset.label}: ${ctx.formattedValue} ${unit}`,
             },
           },
         },
@@ -94,14 +98,8 @@ export class UsageChart implements OnDestroy {
       },
     };
 
-    if (this.chart) {
-      this.chart.data.labels = labels;
-      this.chart.data.datasets[0].data = data;
-      this.chart.data.datasets[0].label = `Usage (${unit})`;
-      this.chart.update();
-    } else {
-      this.chart = new Chart(canvas, config);
-    }
+    this.chart?.destroy();
+    this.chart = new Chart(canvas, config);
   }
 
   ngOnDestroy(): void {
