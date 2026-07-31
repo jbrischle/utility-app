@@ -20,8 +20,8 @@
           <span class="muted count">{{ card.readingCount }} readings</span>
         </div>
         <h3 class="meter-name">{{ card.meter.name }}</h3>
-        @if (card.meter.location) {
-          <div class="muted location">{{ card.meter.location }}</div>
+        @if (card.meter.serialNumber) {
+          <div class="muted serial">S/N {{ card.meter.serialNumber }}</div>
         }
         @if (card.latestValue !== null) {
           <div class="latest">
