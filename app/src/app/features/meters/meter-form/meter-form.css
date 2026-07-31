@@ -1,0 +1,14 @@
+.page-head {
+  margin-bottom: 20px;
+}
+.back {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+.form {
+  max-width: 560px;
+}
+.actions {
+  margin-top: 8px;
+}

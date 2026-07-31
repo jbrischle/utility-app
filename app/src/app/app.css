@@ -1,0 +1,70 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(15, 20, 32, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-bar-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+.brand:hover {
+  color: var(--color-text);
+}
+.brand-mark {
+  color: var(--color-primary);
+  font-size: 1.3rem;
+}
+
+.app-nav {
+  display: flex;
+  gap: 6px;
+}
+.app-nav a {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+.app-nav a:hover {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+.app-nav a.active {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+
+.app-main {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+@media (max-width: 480px) {
+  .brand-text {
+    display: none;
+  }
+}

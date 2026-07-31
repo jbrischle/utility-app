@@ -1,0 +1,64 @@
+.page-head {
+  margin-bottom: 20px;
+}
+
+.meter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.meter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--color-text);
+  transition:
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+.meter-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  color: var(--color-text);
+}
+
+.meter-name {
+  margin: 4px 0 0;
+  font-size: 1.15rem;
+}
+.location {
+  font-size: 0.85rem;
+}
+.count {
+  font-size: 0.8rem;
+}
+
+.latest {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 8px;
+}
+.latest-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.unit {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.latest-date {
+  font-size: 0.82rem;
+}
+.usage-pill {
+  align-self: flex-start;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-success);
+  background: rgba(74, 222, 128, 0.12);
+  padding: 2px 10px;
+  border-radius: 999px;
+}

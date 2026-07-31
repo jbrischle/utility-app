@@ -1,0 +1,251 @@
+@if (notFound()) {
+  <div class="card empty">
+    <p>That meter could not be found.</p>
+    <a routerLink="/meters" class="btn">Back to meters</a>
+  </div>
+} @else if (meter(); as m) {
+  <div class="page-head">
+    <a routerLink="/meters" class="muted back">← Meters</a>
+    <div class="row-between wrap">
+      <div>
+        <div class="row wrap title-row">
+          <h1>{{ m.name }}</h1>
+          <span class="badge badge-{{ m.type }}">{{ labels[m.type] }}</span>
+        </div>
+        <p class="muted meta">
+          @if (m.location) {
+            <span>{{ m.location }}</span>
+          }
+          @if (m.serialNumber) {
+            <span>· S/N {{ m.serialNumber }}</span>
+          }
+          <span>· measured in {{ m.unit }}</span>
+        </p>
+        @if (m.notes) {
+          <p class="notes">{{ m.notes }}</p>
+        }
+      </div>
+      <div class="row wrap">
+        <a [routerLink]="['/meters', m.id, 'readings', 'new']" class="btn btn-primary"
+          >+ Add reading</a
+        >
+        <a [routerLink]="['/meters', m.id, 'edit']" class="btn btn-ghost">Edit</a>
+        <button class="btn btn-danger" (click)="confirmDeleteMeter.set(true)">
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary / comparisons -->
+  <section class="stats-grid">
+    <div class="card stat">
+      <span class="stat-label">This month</span>
+      <span class="stat-value"
+        >{{ stats().thisMonth | number: '1.0-2' }}
+        <span class="unit">{{ m.unit }}</span></span
+      >
+      @if (stats().deltaPct !== null) {
+        <span
+          class="delta"
+          [class.up]="stats().deltaPct! > 0"
+          [class.down]="stats().deltaPct! < 0"
+        >
+          {{ stats().deltaPct! > 0 ? '▲' : '▼' }}
+          {{ stats().deltaPct! | number: '1.0-1' }}% vs last month
+        </span>
+      } @else {
+        <span class="muted small">No comparison yet</span>
+      }
+    </div>
+    <div class="card stat">
+      <span class="stat-label">Last month</span>
+      <span class="stat-value"
+        >{{ stats().lastMonth | number: '1.0-2' }}
+        <span class="unit">{{ m.unit }}</span></span
+      >
+      <span class="muted small"
+        >{{ stats().perDayAvg | number: '1.0-2' }} {{ m.unit }}/day this month</span
+      >
+    </div>
+    <div class="card stat">
+      <span class="stat-label">This week</span>
+      <span class="stat-value"
+        >{{ stats().weekTotal | number: '1.0-2' }}
+        <span class="unit">{{ m.unit }}</span></span
+      >
+    </div>
+    <div class="card stat">
+      <span class="stat-label">This year</span>
+      <span class="stat-value"
+        >{{ stats().yearTotal | number: '1.0-2' }}
+        <span class="unit">{{ m.unit }}</span></span
+      >
+    </div>
+  </section>
+
+  <!-- Chart -->
+  <section class="card chart-card">
+    <div class="row-between wrap">
+      <h2>Usage over time</h2>
+      <div class="toggle" role="group" aria-label="Chart granularity">
+        <button
+          class="toggle-btn"
+          [class.active]="granularity() === 'interval'"
+          (click)="setGranularity('interval')"
+        >
+          By reading
+        </button>
+        <button
+          class="toggle-btn"
+          [class.active]="granularity() === 'monthly'"
+          (click)="setGranularity('monthly')"
+        >
+          Monthly
+        </button>
+      </div>
+    </div>
+    @if (hasEnoughData()) {
+      <app-usage-chart
+        [labels]="chartLabels()"
+        [data]="chartData()"
+        [unit]="m.unit"
+        [color]="chartColor()"
+        [kind]="granularity() === 'monthly' ? 'bar' : 'line'"
+      />
+    } @else {
+      <div class="empty">
+        <p class="muted">Add at least two readings to see usage trends.</p>
+      </div>
+    }
+  </section>
+
+  <!-- Log / history -->
+  <section class="card">
+    <h2>Reading history</h2>
+    @if (rows().length === 0) {
+      <div class="empty">
+        <p class="muted">No readings yet.</p>
+        <a [routerLink]="['/meters', m.id, 'readings', 'new']" class="btn btn-primary"
+          >+ Add first reading</a
+        >
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="log">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th class="num">Reading ({{ m.unit }})</th>
+              <th class="num">Usage</th>
+              <th>Note</th>
+              <th>Photo</th>
+              <th class="actions-col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.reading.id) {
+              <tr>
+                <td>{{ row.reading.readAt | date: 'medium' }}</td>
+                <td class="num">{{ row.reading.value | number: '1.0-3' }}</td>
+                <td class="num">
+                  @if (row.usage === null) {
+                    <span class="muted">—</span>
+                  } @else {
+                    <span [class.negative]="row.usage < 0"
+                      >{{ row.usage > 0 ? '+' : '' }}{{ row.usage | number: '1.0-2' }}</span
+                    >
+                  }
+                </td>
+                <td class="note">{{ row.reading.note || '—' }}</td>
+                <td>
+                  @if (row.reading.photoId && photoUrl(row.reading.photoId)) {
+                    <button
+                      type="button"
+                      class="thumb"
+                      (click)="openPhoto(row.reading.photoId)"
+                      aria-label="View photo"
+                    >
+                      <img [src]="photoUrl(row.reading.photoId)" alt="Reading photo" />
+                    </button>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td class="actions-col">
+                  <div class="row">
+                    <a
+                      class="btn btn-ghost btn-sm"
+                      [routerLink]="['/meters', m.id, 'readings', row.reading.id, 'edit']"
+                      >Edit</a
+                    >
+                    <button
+                      class="btn btn-danger btn-sm"
+                      (click)="confirmDeleteReading.set(row.reading.id)"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <!-- Delete meter confirm -->
+  @if (confirmDeleteMeter()) {
+    <div class="modal-backdrop" (click)="confirmDeleteMeter.set(false)">
+      <div
+        class="modal card"
+        role="alertdialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
+        <h3>Delete this meter?</h3>
+        <p>
+          “{{ m.name }}” and all of its readings will be removed from all views. This
+          cannot be undone from the app.
+        </p>
+        <div class="row wrap">
+          <button class="btn btn-ghost" (click)="confirmDeleteMeter.set(false)">
+            Cancel
+          </button>
+          <button class="btn btn-danger" (click)="deleteMeter()">Delete meter</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Delete reading confirm -->
+  @if (confirmDeleteReading(); as rid) {
+    <div class="modal-backdrop" (click)="confirmDeleteReading.set(null)">
+      <div
+        class="modal card"
+        role="alertdialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
+        <h3>Delete this reading?</h3>
+        <p>This reading will be removed from the history and all calculations.</p>
+        <div class="row wrap">
+          <button class="btn btn-ghost" (click)="confirmDeleteReading.set(null)">
+            Cancel
+          </button>
+          <button class="btn btn-danger" (click)="deleteReading(rid)">
+            Delete reading
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Photo viewer -->
+  @if (viewPhotoUrl(); as url) {
+    <div class="modal-backdrop" (click)="closePhoto()">
+      <img class="photo-full" [src]="url" alt="Meter reading photo" />
+    </div>
+  }
+}

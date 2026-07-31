@@ -1,0 +1,70 @@
+<div class="row-between wrap page-head">
+  <h1>Dashboard</h1>
+  <a routerLink="/meters/new" class="btn btn-primary">+ Add meter</a>
+</div>
+
+@if (ready() && cards().length === 0) {
+  <div class="card empty">
+    <h2>Welcome to Meter Tracker</h2>
+    <p class="muted">
+      Track your electricity and water usage by recording meter readings. Start by
+      adding your first meter.
+    </p>
+    <a routerLink="/meters/new" class="btn btn-primary">+ Add your first meter</a>
+  </div>
+} @else {
+  @if (summaries().length > 0) {
+    <section class="summary-grid">
+      @for (s of summaries(); track s.type) {
+        <div class="card summary summary-{{ s.type }}">
+          <span class="summary-label">{{ s.label }} this month</span>
+          <span class="summary-value"
+            >{{ s.monthTotal | number: '1.0-2' }}
+            <span class="unit">{{ s.unit }}</span></span
+          >
+          <span class="muted small"
+            >{{ s.meterCount }} {{ s.meterCount === 1 ? 'meter' : 'meters' }}</span
+          >
+        </div>
+      }
+    </section>
+  }
+
+  <h2 class="section-title">Your meters</h2>
+  <div class="meter-grid">
+    @for (card of cards(); track card.meter.id) {
+      <div class="card meter-card">
+        <a
+          [routerLink]="['/meters', card.meter.id]"
+          class="meter-card-body"
+        >
+          <div class="row-between">
+            <span class="badge badge-{{ card.meter.type }}">{{
+              labels[card.meter.type]
+            }}</span>
+          </div>
+          <h3 class="meter-name">{{ card.meter.name }}</h3>
+          @if (card.latestValue !== null) {
+            <div class="latest-value"
+              >{{ card.latestValue | number: '1.0-3' }}
+              <span class="unit">{{ card.meter.unit }}</span></div
+            >
+            <div class="muted small">
+              {{ card.latestAt | date: 'mediumDate' }}
+              @if (card.latestUsage !== null) {
+                · +{{ card.latestUsage | number: '1.0-2' }} {{ card.meter.unit }}
+              }
+            </div>
+          } @else {
+            <div class="muted latest-value-empty">No readings yet</div>
+          }
+        </a>
+        <a
+          [routerLink]="['/meters', card.meter.id, 'readings', 'new']"
+          class="btn btn-primary btn-sm add-reading"
+          >+ Add reading</a
+        >
+      </div>
+    }
+  </div>
+}

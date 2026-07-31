@@ -1,0 +1,76 @@
+<div class="page-head">
+  <a routerLink="/meters" class="muted back">← Meters</a>
+  <h1>{{ isEdit ? 'Edit meter' : 'New meter' }}</h1>
+</div>
+
+@if (notFound()) {
+  <div class="card empty">
+    <p>That meter could not be found.</p>
+    <a routerLink="/meters" class="btn">Back to meters</a>
+  </div>
+} @else {
+  <form class="card form" [formGroup]="form" (ngSubmit)="save()">
+    <div class="field">
+      <label for="name">Name</label>
+      <input
+        id="name"
+        type="text"
+        formControlName="name"
+        placeholder="e.g. Garage electricity"
+        autocomplete="off"
+      />
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        <span class="field-error">A name is required (max 80 characters).</span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="type">Type</label>
+      <select id="type" formControlName="type">
+        @for (t of types; track t) {
+          <option [value]="t">{{ labels[t] }} ({{ units[t] }})</option>
+        }
+      </select>
+      <span class="muted">Unit: {{ unitPreview() }}</span>
+    </div>
+
+    <div class="field">
+      <label for="location">Location <span class="muted">(optional)</span></label>
+      <input
+        id="location"
+        type="text"
+        formControlName="location"
+        placeholder="e.g. Basement"
+        autocomplete="off"
+      />
+    </div>
+
+    <div class="field">
+      <label for="serial"
+        >Serial number <span class="muted">(optional)</span></label
+      >
+      <input
+        id="serial"
+        type="text"
+        formControlName="serialNumber"
+        autocomplete="off"
+      />
+    </div>
+
+    <div class="field">
+      <label for="notes">Notes <span class="muted">(optional)</span></label>
+      <textarea id="notes" formControlName="notes"></textarea>
+    </div>
+
+    <div class="row wrap actions">
+      <button type="submit" class="btn btn-primary">
+        {{ isEdit ? 'Save changes' : 'Create meter' }}
+      </button>
+      <a
+        [routerLink]="isEdit ? ['/meters', id] : ['/meters']"
+        class="btn btn-ghost"
+        >Cancel</a
+      >
+    </div>
+  </form>
+}

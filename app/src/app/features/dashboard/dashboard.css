@@ -1,0 +1,77 @@
+.page-head {
+  margin-bottom: 20px;
+}
+.section-title {
+  margin: 28px 0 16px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 4px solid var(--color-border);
+}
+.summary-electricity {
+  border-left-color: var(--color-electricity);
+}
+.summary-water {
+  border-left-color: var(--color-water);
+}
+.summary-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+.summary-value {
+  font-size: 2rem;
+  font-weight: 800;
+}
+.unit {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.small {
+  font-size: 0.82rem;
+}
+
+.meter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.meter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.meter-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text);
+}
+.meter-card-body:hover {
+  color: var(--color-text);
+}
+.meter-name {
+  margin: 4px 0 0;
+  font-size: 1.1rem;
+}
+.latest-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+.latest-value-empty {
+  padding: 6px 0;
+}
+.add-reading {
+  align-self: flex-start;
+}

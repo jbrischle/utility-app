@@ -1,0 +1,58 @@
+.page-head {
+  margin-bottom: 20px;
+}
+.back {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+.form {
+  max-width: 560px;
+}
+.actions {
+  margin-top: 8px;
+}
+
+.file-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.file-drop:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.photo-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.photo-preview img {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+.modal {
+  max-width: 440px;
+  width: 100%;
+}
