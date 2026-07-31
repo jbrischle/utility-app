@@ -1,12 +1,12 @@
-import {
-  Component,
-  computed,
-  effect,
-  inject,
-  signal,
-} from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  form,
+  FormField,
+  required,
+  min,
+  submit,
+} from '@angular/forms/signals';
 import { LocalStore } from '../../../data/local-store';
 import { resizeImage } from '../../../shared/image.util';
 import { UTILITY_LABELS } from '../../../models/utility-type';
@@ -15,25 +15,29 @@ function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-function toLocalInput(iso: string): string {
+function toDateInput(iso: string): string {
   const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours(),
-  )}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function fromLocalInput(value: string): string {
-  return new Date(value).toISOString();
+function fromDateInput(value: string): string {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day).toISOString();
+}
+
+interface ReadingFormModel {
+  value: number | null;
+  readAt: string;
+  note: string;
 }
 
 @Component({
   selector: 'app-reading-form',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [FormField, RouterLink],
   templateUrl: './reading-form.html',
   styleUrl: './reading-form.css',
 })
 export class ReadingForm {
-  private readonly fb = inject(FormBuilder);
   private readonly store = inject(LocalStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -57,10 +61,16 @@ export class ReadingForm {
 
   private patched = false;
 
-  readonly form = this.fb.nonNullable.group({
-    value: [null as number | null, [Validators.required, Validators.min(0)]],
-    readAt: [toLocalInput(new Date().toISOString()), Validators.required],
-    note: [''],
+  readonly model = signal<ReadingFormModel>({
+    value: null,
+    readAt: toDateInput(new Date().toISOString()),
+    note: '',
+  });
+
+  readonly readingForm = form(this.model, (p) => {
+    required(p.value, { message: 'Enter the current meter reading.' });
+    min(p.value, 0, { message: 'The reading must be zero or greater.' });
+    required(p.readAt, { message: 'Pick a date and time.' });
   });
 
   constructor() {
@@ -83,9 +93,9 @@ export class ReadingForm {
       this.notFound.set(true);
       return;
     }
-    this.form.patchValue({
+    this.model.set({
       value: reading.value,
-      readAt: toLocalInput(reading.readAt),
+      readAt: toDateInput(reading.readAt),
       note: reading.note,
     });
     this.existingPhotoId = reading.photoId;
@@ -122,27 +132,26 @@ export class ReadingForm {
 
   /** The most recent reading value strictly before the entered time (excluding this one). */
   previousValue(): number | null {
-    const readAtValue = this.form.controls.readAt.value;
+    const readAtValue = this.model().readAt;
     if (!readAtValue) return null;
-    const targetIso = fromLocalInput(readAtValue);
+    const targetIso = fromDateInput(readAtValue);
     const candidates = this.store
       .readingsForMeter(this.meterId)
       .filter((r) => r.id !== this.readingId && r.readAt < targetIso);
     return candidates.length ? candidates[candidates.length - 1].value : null;
   }
 
-  submit(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-    const prev = this.previousValue();
-    const value = this.form.controls.value.value!;
-    if (prev !== null && value < prev) {
-      this.showWarning.set(true);
-      return;
-    }
-    void this.persist();
+  onSubmit(event: Event): void {
+    event.preventDefault();
+    submit(this.readingForm, async () => {
+      const prev = this.previousValue();
+      const value = this.model().value!;
+      if (prev !== null && value < prev) {
+        this.showWarning.set(true);
+        return;
+      }
+      await this.persist();
+    });
   }
 
   confirmSaveAnyway(): void {
@@ -156,11 +165,11 @@ export class ReadingForm {
 
   private async persist(): Promise<void> {
     this.saving.set(true);
-    const raw = this.form.getRawValue();
+    const raw = this.model();
     const input = {
       meterId: this.meterId,
       value: raw.value!,
-      readAt: fromLocalInput(raw.readAt),
+      readAt: fromDateInput(raw.readAt),
       note: raw.note,
     };
     try {

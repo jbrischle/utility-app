@@ -146,7 +146,7 @@
           <tbody>
             @for (row of rows(); track row.reading.id) {
               <tr>
-                <td>{{ row.reading.readAt | date: 'medium' }}</td>
+                <td>{{ row.reading.readAt | date: 'mediumDate' }}</td>
                 <td class="num">{{ row.reading.value | number: '1.0-3' }}</td>
                 <td class="num">
                   @if (row.usage === null) {

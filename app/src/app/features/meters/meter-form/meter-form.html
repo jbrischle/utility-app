@@ -9,24 +9,26 @@
     <a routerLink="/meters" class="btn">Back to meters</a>
   </div>
 } @else {
-  <form class="card form" [formGroup]="form" (ngSubmit)="save()">
+  <form class="card form" (submit)="onSubmit($event)">
     <div class="field">
       <label for="name">Name</label>
       <input
         id="name"
         type="text"
-        formControlName="name"
+        [formField]="meterForm.name"
         placeholder="e.g. Garage electricity"
         autocomplete="off"
       />
-      @if (form.controls.name.touched && form.controls.name.invalid) {
-        <span class="field-error">A name is required (max 80 characters).</span>
+      @if (meterForm.name().touched() && meterForm.name().invalid()) {
+        @for (error of meterForm.name().errors(); track error.kind) {
+          <span class="field-error">{{ error.message }}</span>
+        }
       }
     </div>
 
     <div class="field">
       <label for="type">Type</label>
-      <select id="type" formControlName="type">
+      <select id="type" [formField]="meterForm.type">
         @for (t of types; track t) {
           <option [value]="t">{{ labels[t] }} ({{ units[t] }})</option>
         }
@@ -39,7 +41,7 @@
       <input
         id="location"
         type="text"
-        formControlName="location"
+        [formField]="meterForm.location"
         placeholder="e.g. Basement"
         autocomplete="off"
       />
@@ -52,18 +54,18 @@
       <input
         id="serial"
         type="text"
-        formControlName="serialNumber"
+        [formField]="meterForm.serialNumber"
         autocomplete="off"
       />
     </div>
 
     <div class="field">
       <label for="notes">Notes <span class="muted">(optional)</span></label>
-      <textarea id="notes" formControlName="notes"></textarea>
+      <textarea id="notes" [formField]="meterForm.notes"></textarea>
     </div>
 
     <div class="row wrap actions">
-      <button type="submit" class="btn btn-primary">
+      <button type="submit" class="btn btn-primary" [disabled]="meterForm().invalid()">
         {{ isEdit ? 'Save changes' : 'Create meter' }}
       </button>
       <a

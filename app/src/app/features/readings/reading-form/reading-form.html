@@ -14,7 +14,7 @@
     }
   </div>
 
-  <form class="card form" [formGroup]="form" (ngSubmit)="submit()">
+  <form class="card form" (submit)="onSubmit($event)">
     <div class="field">
       <label for="value">Meter reading (total shown on the meter)</label>
       <input
@@ -22,23 +22,29 @@
         type="number"
         inputmode="decimal"
         step="any"
-        min="0"
-        formControlName="value"
+        [formField]="readingForm.value"
         placeholder="e.g. 14523"
       />
-      @if (form.controls.value.touched && form.controls.value.invalid) {
-        <span class="field-error">Enter a valid non-negative number.</span>
+      @if (readingForm.value().touched() && readingForm.value().invalid()) {
+        @for (error of readingForm.value().errors(); track error.kind) {
+          <span class="field-error">{{ error.message }}</span>
+        }
       }
     </div>
 
     <div class="field">
-      <label for="readAt">Date &amp; time</label>
-      <input id="readAt" type="datetime-local" formControlName="readAt" />
+      <label for="readAt">Date</label>
+      <input id="readAt" type="date" [formField]="readingForm.readAt" />
+      @if (readingForm.readAt().touched() && readingForm.readAt().invalid()) {
+        @for (error of readingForm.readAt().errors(); track error.kind) {
+          <span class="field-error">{{ error.message }}</span>
+        }
+      }
     </div>
 
     <div class="field">
       <label for="note">Note <span class="muted">(optional)</span></label>
-      <textarea id="note" formControlName="note"></textarea>
+      <textarea id="note" [formField]="readingForm.note"></textarea>
     </div>
 
     <div class="field">
@@ -65,7 +71,11 @@
     </div>
 
     <div class="row wrap actions">
-      <button type="submit" class="btn btn-primary" [disabled]="saving()">
+      <button
+        type="submit"
+        class="btn btn-primary"
+        [disabled]="saving() || readingForm().invalid()"
+      >
         {{ isEdit ? 'Save changes' : 'Save reading' }}
       </button>
       <a [routerLink]="['/meters', meterId]" class="btn btn-ghost">Cancel</a>
@@ -83,9 +93,9 @@
       >
         <h3 id="warn-title">⚠️ Reading looks low</h3>
         <p>
-          The value you entered ({{ form.controls.value.value }}) is lower than the
-          previous reading ({{ previousValue() }}). This will produce negative usage,
-          which usually means a typo.
+          The value you entered ({{ model().value }}) is lower than the previous
+          reading ({{ previousValue() }}). This will produce negative usage, which
+          usually means a typo.
         </p>
         <div class="row wrap actions">
           <button type="button" class="btn btn-ghost" (click)="cancelWarning()">
