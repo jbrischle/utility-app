@@ -1,20 +1,8 @@
-import {
-  Component,
-  computed,
-  effect,
-  inject,
-  signal,
-  untracked,
-} from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { LocalStore } from '../../../data/local-store';
-import {
-  UsageService,
-  CONSUMED,
-  PRODUCED,
-  ValueFn,
-} from '../../../services/usage';
+import { UsageService, CONSUMED, PRODUCED, ValueFn } from '../../../services/usage';
 import { UsageChart, ChartSeries } from '../../../shared/usage-chart/usage-chart';
 import { UTILITY_LABELS } from '../../../models/utility-type';
 import { ReadingWithUsage } from '../../../models/reading.model';
@@ -76,9 +64,7 @@ export class MeterDetail {
   readonly viewPhotoUrl = signal<string | null>(null);
   readonly photoUrls = signal<Map<string, string>>(new Map());
 
-  private readonly readings = computed(() =>
-    this.store.readingsForMeter(this.id),
-  );
+  private readonly readings = computed(() => this.store.readingsForMeter(this.id));
 
   /** Readings annotated with usage, newest first for the log table. */
   readonly rows = computed<ReadingWithUsage[]>(() =>
@@ -89,19 +75,15 @@ export class MeterDetail {
 
   readonly chartLabels = computed<string[]>(() => {
     if (this.granularity() === 'monthly') {
-      return this.usage
-        .monthlyTotals(this.readings())
-        .map((m) => this.formatMonth(m.label));
+      return this.usage.monthlyTotals(this.readings()).map((m) => this.formatMonth(m.label));
     }
     const annotated = this.usage.withUsage(this.readings());
-    return annotated
-      .slice(1)
-      .map((r) =>
-        new Date(r.reading.readAt).toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-        }),
-      );
+    return annotated.slice(1).map((r) =>
+      new Date(r.reading.readAt).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      }),
+    );
   });
 
   private seriesData(selector: ValueFn, key: 'usage' | 'producedUsage'): number[] {
