@@ -13,10 +13,7 @@ export interface Reading {
   deletedAt: string | null;
 }
 
-export type ReadingInput = Pick<
-  Reading,
-  'meterId' | 'value' | 'produced' | 'readAt' | 'note'
->;
+export type ReadingInput = Pick<Reading, 'meterId' | 'value' | 'produced' | 'readAt' | 'note'>;
 
 export interface ReadingWithUsage {
   reading: Reading;

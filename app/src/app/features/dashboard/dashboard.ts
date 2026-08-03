@@ -2,12 +2,8 @@ import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { LocalStore } from '../../data/local-store';
-import { UsageService, CONSUMED, PRODUCED } from '../../services/usage';
-import {
-  UTILITY_LABELS,
-  UTILITY_UNITS,
-  UtilityType,
-} from '../../models/utility-type';
+import { CONSUMED, PRODUCED, UsageService } from '../../services/usage';
+import { UTILITY_LABELS, UTILITY_UNITS, UtilityType } from '../../models/utility-type';
 import { Meter } from '../../models/meter.model';
 
 interface MeterCard {
@@ -40,13 +36,10 @@ function startOfNextMonth(d: Date): Date {
   styleUrl: './dashboard.css',
 })
 export class Dashboard {
-  private readonly store = inject(LocalStore);
-  private readonly usage = inject(UsageService);
-  private readonly now = new Date();
-
   readonly labels = UTILITY_LABELS;
+  private readonly store = inject(LocalStore);
   readonly ready = this.store.ready;
-
+  private readonly usage = inject(UsageService);
   readonly cards = computed<MeterCard[]>(() => {
     const readings = this.store.readings();
     return this.store.meters().map((meter) => {
@@ -60,7 +53,7 @@ export class Dashboard {
       };
     });
   });
-
+  private readonly now = new Date();
   readonly summaries = computed<TypeSummary[]>(() => {
     const meters = this.store.meters();
     const readings = this.store.readings();
@@ -77,9 +70,7 @@ export class Dashboard {
         type === 'electricity'
           ? typeMeters.reduce((sum, m) => {
               const own = readings.filter((r) => r.meterId === m.id);
-              return (
-                sum + this.usage.totalForRange(own, monthStart, nextMonth, PRODUCED)
-              );
+              return sum + this.usage.totalForRange(own, monthStart, nextMonth, PRODUCED);
             }, 0)
           : null;
       return {

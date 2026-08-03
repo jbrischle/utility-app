@@ -1,16 +1,10 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  form,
-  FormField,
-  required,
-  maxLength,
-  submit,
-} from '@angular/forms/signals';
+import { form, FormField, maxLength, required, submit } from '@angular/forms/signals';
 import { LocalStore } from '../../../data/local-store';
 import {
-  UTILITY_TYPES,
   UTILITY_LABELS,
+  UTILITY_TYPES,
   UTILITY_UNITS,
   UtilityType,
 } from '../../../models/utility-type';
@@ -30,19 +24,11 @@ interface MeterFormModel {
   styleUrl: './meter-form.css',
 })
 export class MeterForm {
-  private readonly store = inject(LocalStore);
-  private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
-
   readonly types = UTILITY_TYPES;
   readonly labels = UTILITY_LABELS;
   readonly units = UTILITY_UNITS;
-
-  readonly id = this.route.snapshot.paramMap.get('id');
   readonly isEdit = !!this.id;
   readonly notFound = signal(false);
-  private patched = false;
-
   readonly model = signal<MeterFormModel>({
     name: '',
     type: 'electricity',
@@ -50,11 +36,15 @@ export class MeterForm {
     serialNumber: '',
     notes: '',
   });
-
   readonly meterForm = form(this.model, (p) => {
     required(p.name, { message: 'A name is required.' });
     maxLength(p.name, 80, { message: 'Use at most 80 characters.' });
   });
+  private readonly store = inject(LocalStore);
+  private readonly route = inject(ActivatedRoute);
+  readonly id = this.route.snapshot.paramMap.get('id');
+  private readonly router = inject(Router);
+  private patched = false;
 
   constructor() {
     if (this.isEdit) {

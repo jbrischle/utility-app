@@ -13,7 +13,4 @@ export interface Meter {
   deletedAt: string | null;
 }
 
-export type MeterInput = Pick<
-  Meter,
-  'name' | 'type' | 'location' | 'serialNumber' | 'notes'
->;
+export type MeterInput = Pick<Meter, 'name' | 'type' | 'location' | 'serialNumber' | 'notes'>;

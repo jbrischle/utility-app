@@ -51,15 +51,14 @@
           type="number"
         />
         @if (submitAttempted() && producedInvalid()) {
-          <span
-            class="field-error">Enter the produced total (zero or greater).</span>
+          <span class="field-error">Enter the produced total (zero or greater).</span>
         }
       </div>
     }
 
     <div class="field">
       <label for="readAt">Date</label>
-      <input [formField]="readingForm.readAt" id="readAt" type="date"/>
+      <input [formField]="readingForm.readAt" id="readAt" type="date" />
       @if (readingForm.readAt().touched() && readingForm.readAt().invalid()) {
         @for (error of readingForm.readAt().errors(); track error.kind) {
           <span class="field-error">{{ error.message }}</span>
@@ -76,9 +75,8 @@
       <label>Photo <span class="muted">(optional)</span></label>
       @if (hasPhoto()) {
         <div class="photo-preview">
-          <img [src]="previewUrl()" alt="Meter reading photo"/>
-          <button (click)="removePhoto()" class="btn btn-danger btn-sm"
-                  type="button">
+          <img [src]="previewUrl()" alt="Meter reading photo" />
+          <button (click)="removePhoto()" class="btn btn-danger btn-sm" type="button">
             Remove photo
           </button>
         </div>
@@ -128,8 +126,7 @@
           <button (click)="cancelWarning()" class="btn btn-ghost" type="button">
             Go back and fix
           </button>
-          <button (click)="confirmSaveAnyway()" class="btn btn-danger"
-                  type="button">
+          <button (click)="confirmSaveAnyway()" class="btn btn-danger" type="button">
             Save anyway
           </button>
         </div>

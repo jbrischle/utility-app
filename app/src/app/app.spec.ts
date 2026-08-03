@@ -20,8 +20,6 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.brand-text')?.textContent).toContain(
-      'Meter Tracker',
-    );
+    expect(compiled.querySelector('.brand-text')?.textContent).toContain('Meter Tracker');
   });
 });

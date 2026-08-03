@@ -1,11 +1,4 @@
-import {
-  Component,
-  ElementRef,
-  effect,
-  input,
-  viewChild,
-  OnDestroy,
-} from '@angular/core';
+import { Component, effect, ElementRef, input, OnDestroy, viewChild } from '@angular/core';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -19,13 +12,10 @@ export interface ChartSeries {
 @Component({
   selector: 'app-usage-chart',
   template: '<canvas #canvas></canvas>',
-  styles: [
-    ':host { display:block; position:relative; height:300px; width:100%; }',
-  ],
+  styles: [':host { display:block; position:relative; height:300px; width:100%; }'],
 })
 export class UsageChart implements OnDestroy {
-  readonly canvasRef =
-    viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+  readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   readonly labels = input<string[]>([]);
   readonly series = input<ChartSeries[]>([]);
   readonly unit = input<string>('');
@@ -41,6 +31,10 @@ export class UsageChart implements OnDestroy {
       const kind = this.kind();
       this.render(labels, series, unit, kind);
     });
+  }
+
+  ngOnDestroy(): void {
+    this.chart?.destroy();
   }
 
   private render(
@@ -78,8 +72,7 @@ export class UsageChart implements OnDestroy {
           },
           tooltip: {
             callbacks: {
-              label: (ctx) =>
-                `${ctx.dataset.label}: ${ctx.formattedValue} ${unit}`,
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue} ${unit}`,
             },
           },
         },
@@ -100,9 +93,5 @@ export class UsageChart implements OnDestroy {
 
     this.chart?.destroy();
     this.chart = new Chart(canvas, config);
-  }
-
-  ngOnDestroy(): void {
-    this.chart?.destroy();
   }
 }

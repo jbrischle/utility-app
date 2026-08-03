@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, Signal } from '@angular/core';
+import { computed, Injectable, signal, Signal } from '@angular/core';
 import { db } from './db';
 import { Meter, MeterInput } from '../models/meter.model';
 import { Reading, ReadingInput } from '../models/reading.model';
@@ -25,43 +25,18 @@ function now(): string {
 @Injectable({ providedIn: 'root' })
 export class LocalStore {
   private readonly metersSig = signal<Meter[]>([]);
-  private readonly readingsSig = signal<Reading[]>([]);
-  private readonly readySig = signal(false);
-
   /** All non-deleted meters, sorted by name. */
   readonly meters: Signal<Meter[]> = this.metersSig.asReadonly();
+  private readonly readingsSig = signal<Reading[]>([]);
   /** All non-deleted readings. */
   readonly readings: Signal<Reading[]> = this.readingsSig.asReadonly();
+  private readonly readySig = signal(false);
   /** True once the initial load from IndexedDB has completed. */
   readonly ready: Signal<boolean> = this.readySig.asReadonly();
 
   constructor() {
     void this.reloadAll();
   }
-
-  private async reloadAll(): Promise<void> {
-    await Promise.all([this.reloadMeters(), this.reloadReadings()]);
-    this.readySig.set(true);
-  }
-
-  private async reloadMeters(): Promise<void> {
-    const all = await db.meters.toArray();
-    const active = all
-      .filter((m) => !m.deletedAt)
-      .sort((a, b) => a.name.localeCompare(b.name));
-    this.metersSig.set(active);
-  }
-
-  private async reloadReadings(): Promise<void> {
-    const all = await db.readings.toArray();
-    const active = all
-      .filter((r) => !r.deletedAt)
-      .map((r) => ({ ...r, produced: r.produced ?? null }))
-      .sort((a, b) => a.readAt.localeCompare(b.readAt));
-    this.readingsSig.set(active);
-  }
-
-  // ----- Meters -----------------------------------------------------------
 
   meterById(id: string): Meter | undefined {
     return this.metersSig().find((m) => m.id === id);
@@ -90,6 +65,8 @@ export class LocalStore {
     return meter;
   }
 
+  // ----- Meters -----------------------------------------------------------
+
   async updateMeter(id: string, input: MeterInput): Promise<void> {
     const existing = await db.meters.get(id);
     if (!existing) return;
@@ -116,14 +93,10 @@ export class LocalStore {
     }
     const readings = await db.readings.where('meterId').equals(id).toArray();
     await db.readings.bulkPut(
-      readings
-        .filter((r) => !r.deletedAt)
-        .map((r) => ({ ...r, deletedAt: ts, updatedAt: ts })),
+      readings.filter((r) => !r.deletedAt).map((r) => ({ ...r, deletedAt: ts, updatedAt: ts })),
     );
     await this.reloadAll();
   }
-
-  // ----- Readings ---------------------------------------------------------
 
   readingsForMeter(meterId: string): Reading[] {
     return this.readingsSig()
@@ -161,6 +134,8 @@ export class LocalStore {
     await this.reloadReadings();
     return reading;
   }
+
+  // ----- Readings ---------------------------------------------------------
 
   async updateReading(
     id: string,
@@ -200,7 +175,31 @@ export class LocalStore {
     await this.reloadReadings();
   }
 
+  async getPhoto(id: string): Promise<PhotoBlob | undefined> {
+    return db.photos.get(id);
+  }
+
+  private async reloadAll(): Promise<void> {
+    await Promise.all([this.reloadMeters(), this.reloadReadings()]);
+    this.readySig.set(true);
+  }
+
+  private async reloadMeters(): Promise<void> {
+    const all = await db.meters.toArray();
+    const active = all.filter((m) => !m.deletedAt).sort((a, b) => a.name.localeCompare(b.name));
+    this.metersSig.set(active);
+  }
+
   // ----- Photos -----------------------------------------------------------
+
+  private async reloadReadings(): Promise<void> {
+    const all = await db.readings.toArray();
+    const active = all
+      .filter((r) => !r.deletedAt)
+      .map((r) => ({ ...r, produced: r.produced ?? null }))
+      .sort((a, b) => a.readAt.localeCompare(b.readAt));
+    this.readingsSig.set(active);
+  }
 
   private async savePhoto(readingId: string, data: Blob): Promise<string> {
     const photo: PhotoBlob = {
@@ -212,9 +211,5 @@ export class LocalStore {
     };
     await db.photos.put(photo);
     return photo.id;
-  }
-
-  async getPhoto(id: string): Promise<PhotoBlob | undefined> {
-    return db.photos.get(id);
   }
 }

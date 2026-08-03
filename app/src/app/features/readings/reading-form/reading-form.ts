@@ -1,9 +1,9 @@
 import {
-  Component,
-  ElementRef,
   afterNextRender,
+  Component,
   computed,
   effect,
+  ElementRef,
   inject,
   signal,
   viewChild,
@@ -62,17 +62,17 @@ export class ReadingForm {
     min(p.value, 0, { message: 'The reading must be zero or greater.' });
     required(p.readAt, { message: 'Pick a date.' });
   });
+  readonly isElectricity = computed(() => this.meter()?.type === 'electricity');
   /** Production is validated manually since it only applies to electricity meters. */
   readonly producedInvalid = computed(
     () => this.isElectricity() && (this.model().produced === null || this.model().produced! < 0),
   );
+  readonly isEdit = !!this.readingId;
   private readonly store = inject(LocalStore);
+  readonly meter = computed(() => this.store.meterById(this.meterId));
   private readonly route = inject(ActivatedRoute);
   readonly meterId = this.route.snapshot.paramMap.get('meterId')!;
-  readonly meter = computed(() => this.store.meterById(this.meterId));
-  readonly isElectricity = computed(() => this.meter()?.type === 'electricity');
   readonly readingId = this.route.snapshot.paramMap.get('id');
-  readonly isEdit = !!this.readingId;
   private readonly router = inject(Router);
   // Photo state
   private newPhoto: Blob | null = null;
@@ -80,8 +80,7 @@ export class ReadingForm {
   private removedExisting = false;
   private patched = false;
 
-  private readonly valueInput =
-    viewChild<ElementRef<HTMLInputElement>>('valueInput');
+  private readonly valueInput = viewChild<ElementRef<HTMLInputElement>>('valueInput');
 
   constructor() {
     if (!this.isEdit) {

@@ -1,14 +1,11 @@
 <header class="app-bar">
   <div class="app-bar-inner">
-    <a routerLink="/" class="brand" aria-label="Meter Tracker home">
-      <span class="brand-mark" aria-hidden="true">◉</span>
+    <a aria-label="Meter Tracker home" class="brand" routerLink="/">
+      <span aria-hidden="true" class="brand-mark">◉</span>
       <span class="brand-text">Meter Tracker</span>
     </a>
     <nav class="app-nav">
-      <a
-        routerLink="/"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
+      <a [routerLinkActiveOptions]="{ exact: true }" routerLink="/" routerLinkActive="active"
         >Dashboard</a
       >
       <a routerLink="/meters" routerLinkActive="active">Meters</a>

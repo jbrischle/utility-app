@@ -3,11 +3,7 @@
  * The longest edge is capped and the result is re-encoded as JPEG. If anything
  * goes wrong (e.g. an unsupported format) the original blob is returned.
  */
-export async function resizeImage(
-  file: Blob,
-  maxEdge = 1600,
-  quality = 0.8,
-): Promise<Blob> {
+export async function resizeImage(file: Blob, maxEdge = 1600, quality = 0.8): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
