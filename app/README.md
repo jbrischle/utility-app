@@ -8,11 +8,12 @@ account is required. See `../docs/prd/` for the full product requirements.
 
 - Manage multiple meters (electricity / water) with name, location, serial number and notes.
 - Record **cumulative** meter readings; consumption between readings is computed automatically.
+- Electricity meters track **two registers**: consumed (drawn from grid) and produced (fed in).
 - Warning when a new reading is lower than the previous one (likely typo).
 - Edit and (soft) delete meters and readings.
 - Optional photo per reading (captured/compressed and stored offline).
 - Dashboard with per-meter cards and monthly totals per utility type.
-- Per-meter usage charts (by reading interval or monthly).
+- Per-meter usage charts with selectable granularity (by reading interval, monthly, or yearly).
 - Comparisons (this month vs last, per-day average) and summary totals (week / month / year).
 - Installable PWA that works fully offline.
 
