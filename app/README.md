@@ -1,6 +1,6 @@
-# Meter Tracker (Phase 1 - Offline PWA)
+# Meter Tracker (Offline PWA + optional sync)
 
-An offline-first Angular PWA for tracking home utility meter readings (electricity and water). All data is stored locally in the browser (IndexedDB); no server or account is required. See `../docs/prd/` for the full product requirements.
+An offline-first Angular PWA for tracking home utility meter readings (electricity and water). All data is stored locally in the browser (IndexedDB); no server or account is required. An optional self-hosted server (see [`../server`](../server)) adds multi-device sync and backup. See `../docs/prd/` for the full product requirements.
 
 ## Features
 
@@ -14,6 +14,7 @@ An offline-first Angular PWA for tracking home utility meter readings (electrici
 - Per-meter usage charts with selectable granularity (by reading interval, monthly, or yearly).
 - Comparisons (this month vs last, per-day average) and summary totals (week / month / year).
 - Installable PWA that works fully offline.
+- **Optional multi-device sync** to a self-hosted server (configure under **Settings**).
 
 ## Tech stack
 
@@ -67,7 +68,29 @@ Unit tests (Vitest) cover the usage/period computations in
 Meters store cumulative totals, so the consumption of an interval is
 `value(n) - value(n-1)`. For period totals (week / month / year) each interval's consumption is spread **evenly across the calendar days it spans** (from the earlier reading's day up to, but not including, the later reading's day). A period total is the sum of the daily amounts whose day falls inside the period. This keeps month/week/year totals stable even when readings are taken on irregular dates.
 
+## Sync (optional)
+
+Sync is off by default; the app is fully usable offline without any server. To enable it:
+
+1. Run the sync server (see [`../server/README.md`](../server/README.md)).
+2. In the app, go to **Settings** and set the **Server URL** to your server's LAN address
+   (e.g. `http://192.168.1.50:3000`), then **Save & sync**.
+
+Once configured, a status chip in the header shows the sync state (synced / syncing /
+offline / error) and lets you trigger **Sync now**. The app also syncs automatically on
+startup, when it comes back online, and periodically while online.
+
+- **`src/app/services/sync.ts`** is the sync engine. It depends only on `LocalStore` and
+  `fetch`, so Phase 1 data flows are unchanged — components keep reading/writing locally
+  and sync happens in the background.
+- **Conflict resolution** is last-write-wins by `updatedAt`; soft deletes propagate like
+  edits. Photos (immutable blobs) transfer in whichever direction a peer is missing them.
+- A per-server `lastSyncAt` cursor is stored in IndexedDB; the configured server URL is in
+  `localStorage`. Clearing the URL disables sync and the app behaves exactly as Phase 1.
+
 ## Data & privacy
 
-All data lives in your browser's IndexedDB on this device only. Clearing site data or uninstalling removes it. Multi-device sync and backup are planned for Phase 2 (see
-`../docs/prd/02-phase-2-sync-and-server.md`).
+All data lives in your browser's IndexedDB on this device. Clearing site data or
+uninstalling removes it. If you enable sync, data is also stored on **your own** server
+(private network only, no third parties) — see the security note in
+[`../server/README.md`](../server/README.md).

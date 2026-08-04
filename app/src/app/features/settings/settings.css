@@ -1,0 +1,72 @@
+.page-head {
+  margin-bottom: 16px;
+}
+
+.card + .card {
+  margin-top: 16px;
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
+.status-row {
+  margin-bottom: 12px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+.status-idle .status-dot {
+  background: var(--color-success);
+}
+.status-syncing .status-dot {
+  background: var(--color-primary);
+}
+.status-offline .status-dot {
+  background: #94a3b8;
+}
+.status-error .status-dot {
+  background: var(--color-danger);
+}
+
+.status-list {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.status-list div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.status-list dt {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+.status-list dd {
+  margin: 0;
+  font-weight: 600;
+}
+.error-text {
+  color: var(--color-danger);
+  font-weight: 500;
+  word-break: break-word;
+}

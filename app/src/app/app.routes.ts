@@ -12,6 +12,11 @@ export const routes: Routes = [
     title: 'Meters - Meter Tracker',
   },
   {
+    path: 'settings',
+    loadComponent: () => import('./features/settings/settings').then((m) => m.Settings),
+    title: 'Settings - Meter Tracker',
+  },
+  {
     path: 'meters/new',
     loadComponent: () => import('./features/meters/meter-form/meter-form').then((m) => m.MeterForm),
     title: 'New meter - Meter Tracker',

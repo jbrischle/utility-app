@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { form, FormField, maxLength, required, submit } from '@angular/forms/signals';
 import { LocalStore } from '../../../data/local-store';
@@ -8,6 +8,7 @@ import {
   UTILITY_UNITS,
   UtilityType,
 } from '../../../models/utility-type';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 interface MeterFormModel {
   name: string;
@@ -27,7 +28,6 @@ export class MeterForm {
   readonly types = UTILITY_TYPES;
   readonly labels = UTILITY_LABELS;
   readonly units = UTILITY_UNITS;
-  readonly isEdit = !!this.id;
   readonly notFound = signal(false);
   readonly model = signal<MeterFormModel>({
     name: '',
@@ -42,15 +42,22 @@ export class MeterForm {
   });
   private readonly store = inject(LocalStore);
   private readonly route = inject(ActivatedRoute);
-  readonly id = this.route.snapshot.paramMap.get('id');
+  private readonly routerParamMap = toSignal(this.route.paramMap);
+  readonly id = computed(() => this.routerParamMap()?.get('id'));
+  readonly isEdit = computed(() => !!this.id());
   private readonly router = inject(Router);
   private patched = false;
 
   constructor() {
-    if (this.isEdit) {
+    if (this.isEdit()) {
       effect(() => {
+        const id = this.id();
+        if (!id) {
+          return;
+        }
+
         if (this.patched || !this.store.ready()) return;
-        const meter = this.store.meterById(this.id!);
+        const meter = this.store.getMeterById(id);
         if (!meter) {
           this.notFound.set(true);
           return;
@@ -72,11 +79,16 @@ export class MeterForm {
   }
 
   onSubmit(event: Event): void {
+    const id = this.id();
+    if (!id) {
+      return;
+    }
+
     event.preventDefault();
     submit(this.meterForm, async () => {
       const value = this.model();
-      if (this.isEdit) {
-        await this.store.updateMeter(this.id!, value);
+      if (this.isEdit()) {
+        await this.store.updateMeter(id, value);
         await this.router.navigate(['/meters', this.id]);
       } else {
         const meter = await this.store.addMeter(value);

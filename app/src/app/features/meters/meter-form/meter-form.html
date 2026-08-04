@@ -1,6 +1,6 @@
 <div class="page-head">
   <a class="muted back" routerLink="/meters">← Meters</a>
-  <h1>{{ isEdit ? 'Edit meter' : 'New meter' }}</h1>
+  <h1>{{ isEdit() ? 'Edit meter' : 'New meter' }}</h1>
 </div>
 
 @if (notFound()) {
@@ -59,9 +59,9 @@
 
     <div class="row wrap actions">
       <button [disabled]="meterForm().invalid()" class="btn btn-primary" type="submit">
-        {{ isEdit ? 'Save changes' : 'Create meter' }}
+        {{ isEdit() ? 'Save changes' : 'Create meter' }}
       </button>
-      <a [routerLink]="isEdit ? ['/meters', id] : ['/meters']" class="btn btn-ghost">Cancel</a>
+      <a [routerLink]="isEdit() ? ['/meters', id] : ['/meters']" class="btn btn-ghost">Cancel</a>
     </div>
   </form>
 }

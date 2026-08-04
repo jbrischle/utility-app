@@ -6,7 +6,7 @@
 } @else {
   <div class="page-head">
     <a [routerLink]="['/meters', meterId]" class="muted back">← Back</a>
-    <h1>{{ isEdit ? 'Edit reading' : 'New reading' }}</h1>
+    <h1>{{ isEdit() ? 'Edit reading' : 'New reading' }}</h1>
     @if (meter(); as m) {
       <p class="muted">
         {{ m.name }} · reading in <strong>{{ m.unit }}</strong>
@@ -100,7 +100,7 @@
         class="btn btn-primary"
         type="submit"
       >
-        {{ isEdit ? 'Save changes' : 'Save reading' }}
+        {{ isEdit() ? 'Save changes' : 'Save reading' }}
       </button>
       <a [routerLink]="['/meters', meterId]" class="btn btn-ghost">Cancel</a>
     </div>

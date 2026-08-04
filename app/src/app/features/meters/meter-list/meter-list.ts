@@ -25,6 +25,7 @@ export class MeterList {
   private readonly usage = inject(UsageService);
 
   readonly labels = UTILITY_LABELS;
+  readonly ready = this.store.ready;
 
   readonly cards = computed<MeterCard[]>(() => {
     const readings = this.store.readings();

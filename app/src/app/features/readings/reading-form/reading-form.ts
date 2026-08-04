@@ -14,6 +14,7 @@ import { LocalStore } from '../../../data/local-store';
 import { resizeImage } from '../../../shared/image.util';
 import { UTILITY_LABELS } from '../../../models/utility-type';
 import { Reading } from '../../../models/reading.model';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 function pad(n: number): string {
   return String(n).padStart(2, '0');
@@ -62,17 +63,30 @@ export class ReadingForm {
     min(p.value, 0, { message: 'The reading must be zero or greater.' });
     required(p.readAt, { message: 'Pick a date.' });
   });
-  readonly isElectricity = computed(() => this.meter()?.type === 'electricity');
   /** Production is validated manually since it only applies to electricity meters. */
   readonly producedInvalid = computed(
     () => this.isElectricity() && (this.model().produced === null || this.model().produced! < 0),
   );
-  readonly isEdit = !!this.readingId;
+  readonly isEdit = computed(() => !!this.readingId());
   private readonly store = inject(LocalStore);
-  readonly meter = computed(() => this.store.meterById(this.meterId));
+  readonly meter = computed(() => {
+    const meterId = this.meterId();
+    if (meterId) {
+      return this.store.getMeterById(meterId);
+    }
+    return undefined;
+  });
+  readonly isElectricity = computed(() => {
+    const meter = this.meter();
+    if (meter) {
+      return this.meter()?.type === 'electricity';
+    }
+    return false;
+  });
   private readonly route = inject(ActivatedRoute);
-  readonly meterId = this.route.snapshot.paramMap.get('meterId')!;
-  readonly readingId = this.route.snapshot.paramMap.get('id');
+  private readonly routerParamMap = toSignal(this.route.paramMap);
+  readonly readingId = computed(() => this.routerParamMap()?.get('id'));
+  readonly meterId = computed(() => this.routerParamMap()?.get('meterId'));
   private readonly router = inject(Router);
   // Photo state
   private newPhoto: Blob | null = null;
@@ -87,14 +101,18 @@ export class ReadingForm {
       afterNextRender(() => this.valueInput()?.nativeElement.focus());
     }
     effect(() => {
-      if (!this.store.ready()) return;
-      if (!this.store.meterById(this.meterId)) {
+      const meterId = this.meterId();
+      const readingId = this.readingId();
+      if (!this.store.ready() || !meterId) {
+        return;
+      }
+      if (!this.store.getMeterById(meterId)) {
         this.notFound.set(true);
         return;
       }
-      if (this.isEdit && !this.patched) {
+      if (this.isEdit() && !this.patched && readingId) {
         this.patched = true;
-        void this.loadReading();
+        void this.loadReading(readingId);
       }
     });
   }
@@ -141,8 +159,8 @@ export class ReadingForm {
     this.showWarning.set(false);
   }
 
-  private async loadReading(): Promise<void> {
-    const reading = await this.store.getReading(this.readingId!);
+  private async loadReading(readingId: string): Promise<void> {
+    const reading = await this.store.getReading(readingId);
     if (!reading || reading.deletedAt) {
       this.notFound.set(true);
       return;
@@ -169,12 +187,18 @@ export class ReadingForm {
 
   /** The most recent reading strictly before the entered date (excluding this one). */
   private previousReading(): Reading | null {
+    const readingId = this.readingId();
+    const meterId = this.meterId();
+    if (!readingId || !meterId) {
+      return null;
+    }
+
     const readAtValue = this.model().readAt;
     if (!readAtValue) return null;
     const targetIso = fromDateInput(readAtValue);
     const candidates = this.store
-      .readingsForMeter(this.meterId)
-      .filter((r) => r.id !== this.readingId && r.readAt < targetIso);
+      .readingsForMeter(meterId)
+      .filter((r) => r.id !== readingId && r.readAt < targetIso);
     return candidates.length ? candidates[candidates.length - 1] : null;
   }
 
@@ -204,24 +228,30 @@ export class ReadingForm {
   }
 
   private async persist(): Promise<void> {
+    const readingId = this.readingId();
+    const meterId = this.meterId();
+    if (!readingId || !meterId) {
+      return;
+    }
+
     this.saving.set(true);
     const raw = this.model();
     const input = {
-      meterId: this.meterId,
+      meterId: meterId,
       value: raw.value!,
       produced: this.isElectricity() ? raw.produced : null,
       readAt: fromDateInput(raw.readAt),
       note: raw.note,
     };
     try {
-      if (this.isEdit) {
+      if (this.isEdit()) {
         let photoChange: { photo: Blob | null } | undefined;
         if (this.newPhoto) {
           photoChange = { photo: this.newPhoto };
         } else if (this.removedExisting && this.existingPhotoId) {
           photoChange = { photo: null };
         }
-        await this.store.updateReading(this.readingId!, input, photoChange);
+        await this.store.updateReading(readingId, input, photoChange);
       } else {
         await this.store.addReading(input, this.newPhoto ?? undefined);
       }

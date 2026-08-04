@@ -38,7 +38,7 @@ export class LocalStore {
     void this.reloadAll();
   }
 
-  meterById(id: string): Meter | undefined {
+  getMeterById(id: string): Meter | undefined {
     return this.metersSig().find((m) => m.id === id);
   }
 
@@ -177,6 +177,86 @@ export class LocalStore {
 
   async getPhoto(id: string): Promise<PhotoBlob | undefined> {
     return db.photos.get(id);
+  }
+
+  // ----- Sync support -----------------------------------------------------
+  // These methods exist so the Phase 2 SyncService can read/merge raw records
+  // (including soft-deleted ones) without any UI component touching IndexedDB.
+
+  /**
+   * Raw meters/readings whose `updatedAt` is strictly after `since` (soft-deleted
+   * records included). Passing `null` returns everything. Used to build the push
+   * payload of local changes.
+   */
+  async changedSince(since: string | null): Promise<{ meters: Meter[]; readings: Reading[] }> {
+    const [meters, readings] = await Promise.all([db.meters.toArray(), db.readings.toArray()]);
+    const normalized = readings.map((r) => ({ ...r, produced: r.produced ?? null }));
+    if (!since) return { meters, readings: normalized };
+    return {
+      meters: meters.filter((m) => m.updatedAt > since),
+      readings: normalized.filter((r) => r.updatedAt > since),
+    };
+  }
+
+  /**
+   * Merges records pulled from the server using last-write-wins by `updatedAt`
+   * (a remote record is applied only if it is strictly newer than the local one).
+   * Returns how many records were actually written.
+   */
+  async mergeRemote(
+    meters: Meter[],
+    readings: Reading[],
+  ): Promise<{ meters: number; readings: number }> {
+    const meterPuts: Meter[] = [];
+    for (const remote of meters) {
+      const local = await db.meters.get(remote.id);
+      if (!local || remote.updatedAt > local.updatedAt) meterPuts.push(remote);
+    }
+    const readingPuts: Reading[] = [];
+    for (const remote of readings) {
+      const local = await db.readings.get(remote.id);
+      if (!local || remote.updatedAt > local.updatedAt) {
+        readingPuts.push({ ...remote, produced: remote.produced ?? null });
+      }
+    }
+    if (meterPuts.length) await db.meters.bulkPut(meterPuts);
+    if (readingPuts.length) await db.readings.bulkPut(readingPuts);
+    if (meterPuts.length || readingPuts.length) await this.reloadAll();
+    return { meters: meterPuts.length, readings: readingPuts.length };
+  }
+
+  /** Ids of all photo blobs stored locally. */
+  async allPhotoIds(): Promise<string[]> {
+    return (await db.photos.toCollection().primaryKeys()) as string[];
+  }
+
+  /** Photos referenced by any reading (including soft-deleted ones). */
+  async referencedPhotos(): Promise<{ photoId: string; readingId: string }[]> {
+    const readings = await db.readings.toArray();
+    const seen = new Set<string>();
+    const result: { photoId: string; readingId: string }[] = [];
+    for (const r of readings) {
+      if (r.photoId && !seen.has(r.photoId)) {
+        seen.add(r.photoId);
+        result.push({ photoId: r.photoId, readingId: r.id });
+      }
+    }
+    return result;
+  }
+
+  /** Stores a photo blob if not already present (idempotent). */
+  async putPhoto(photo: PhotoBlob): Promise<void> {
+    const existing = await db.photos.get(photo.id);
+    if (!existing) await db.photos.put(photo);
+  }
+
+  async getLastSyncAt(serverUrl: string): Promise<string | null> {
+    const state = await db.syncState.get(serverUrl);
+    return state?.lastSyncAt ?? null;
+  }
+
+  async setLastSyncAt(serverUrl: string, lastSyncAt: string): Promise<void> {
+    await db.syncState.put({ key: serverUrl, lastSyncAt });
   }
 
   private async reloadAll(): Promise<void> {

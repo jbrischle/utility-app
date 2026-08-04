@@ -3,13 +3,13 @@
   <a class="btn btn-primary" routerLink="/meters/new">+ Add meter</a>
 </div>
 
-@if (cards().length === 0) {
+@if (ready() && cards().length === 0) {
   <div class="card empty">
     <p>No meters yet.</p>
     <p class="muted">Add your first electricity or water meter to start tracking.</p>
     <a class="btn btn-primary" routerLink="/meters/new">+ Add meter</a>
   </div>
-} @else {
+} @else if (cards().length > 0) {
   <div class="meter-grid">
     @for (card of cards(); track card.meter.id) {
       <a [routerLink]="['/meters', card.meter.id]" class="card meter-card">

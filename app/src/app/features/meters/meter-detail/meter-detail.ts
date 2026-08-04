@@ -53,6 +53,12 @@ export class MeterDetail {
   readonly photoUrls = signal<Map<string, string>>(new Map());
   readonly stats = computed<Stats>(() => this.computeStats(CONSUMED));
   readonly producedStats = computed<Stats>(() => this.computeStats(PRODUCED));
+  private readonly store = inject(LocalStore);
+  readonly notFound = computed(() => this.store.ready() && !this.meter());
+  private readonly usage = inject(UsageService);
+  private readonly route = inject(ActivatedRoute);
+  readonly id = this.route.snapshot.paramMap.get('id')!;
+  readonly meter = computed(() => this.store.getMeterById(this.id));
   readonly isElectricity = computed(() => this.meter()?.type === 'electricity');
   readonly chartSeries = computed<ChartSeries[]>(() => {
     const consumedColor = this.isElectricity()
@@ -76,12 +82,6 @@ export class MeterDetail {
     }
     return series;
   });
-  private readonly store = inject(LocalStore);
-  readonly meter = computed(() => this.store.meterById(this.id));
-  readonly notFound = computed(() => this.store.ready() && !this.meter());
-  private readonly usage = inject(UsageService);
-  private readonly route = inject(ActivatedRoute);
-  readonly id = this.route.snapshot.paramMap.get('id')!;
   private readonly router = inject(Router);
   private readonly now = new Date();
   private readonly readings = computed(() => this.store.readingsForMeter(this.id));

@@ -4,12 +4,29 @@
       <span aria-hidden="true" class="brand-mark">◉</span>
       <span class="brand-text">Meter Tracker</span>
     </a>
-    <nav class="app-nav">
-      <a [routerLinkActiveOptions]="{ exact: true }" routerLink="/" routerLinkActive="active"
-        >Dashboard</a
-      >
-      <a routerLink="/meters" routerLinkActive="active">Meters</a>
-    </nav>
+    <div class="app-bar-right">
+      <nav class="app-nav">
+        <a [routerLinkActiveOptions]="{ exact: true }" routerLink="/" routerLinkActive="active"
+          >Dashboard</a
+        >
+        <a routerLink="/meters" routerLinkActive="active">Meters</a>
+        <a routerLink="/settings" routerLinkActive="active">Settings</a>
+      </nav>
+      @if (enabled()) {
+        <button
+          type="button"
+          class="sync-chip sync-{{ status() }}"
+          (click)="syncNow()"
+          [disabled]="status() === 'syncing'"
+          [title]="
+            lastSyncAt() ? 'Last sync: ' + (lastSyncAt() | date: 'medium') : 'Not synced yet'
+          "
+        >
+          <span class="sync-dot" aria-hidden="true"></span>
+          <span class="sync-label">{{ statusLabel() }}</span>
+        </button>
+      }
+    </div>
   </div>
 </header>
 

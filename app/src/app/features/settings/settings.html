@@ -1,0 +1,64 @@
+<div class="page-head">
+  <h1>Settings</h1>
+</div>
+
+<section class="card">
+  <h2>Sync server</h2>
+  <p class="muted">
+    Point this device at your self-hosted sync server to back up data and keep multiple devices in
+    sync. Leave empty to keep everything local (Phase&nbsp;1 behaviour).
+  </p>
+
+  <form (submit)="save(); $event.preventDefault()">
+    <div class="field">
+      <label for="serverUrl">Server URL</label>
+      <input
+        id="serverUrl"
+        name="serverUrl"
+        type="url"
+        inputmode="url"
+        autocomplete="off"
+        placeholder="http://192.168.1.50:3000"
+        [ngModel]="serverUrl()"
+        (ngModelChange)="serverUrl.set($event)"
+      />
+      <span class="muted small">
+        Use the address of your server on your home network. Do not expose it to the public internet
+        (no authentication).
+      </span>
+    </div>
+
+    <div class="row wrap">
+      <button type="submit" class="btn btn-primary" [disabled]="saving()">Save &amp; sync</button>
+      @if (enabled()) {
+        <button type="button" class="btn btn-ghost" (click)="syncNow()" [disabled]="saving()">
+          Sync now
+        </button>
+        <button type="button" class="btn btn-danger" (click)="disable()" [disabled]="saving()">
+          Disable sync
+        </button>
+      }
+    </div>
+  </form>
+</section>
+
+<section class="card status-card">
+  <h2>Status</h2>
+  <div class="status-row">
+    <span class="status-pill status-{{ status() }}">
+      <span class="status-dot" aria-hidden="true"></span>{{ statusLabel() }}
+    </span>
+  </div>
+  <dl class="status-list">
+    <div>
+      <dt>Last sync</dt>
+      <dd>{{ lastSyncAt() ? (lastSyncAt() | date: 'medium') : 'Never' }}</dd>
+    </div>
+    @if (lastError()) {
+      <div>
+        <dt>Last error</dt>
+        <dd class="error-text">{{ lastError() }}</dd>
+      </div>
+    }
+  </dl>
+</section>
