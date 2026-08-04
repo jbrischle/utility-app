@@ -35,6 +35,24 @@ export class MeterTrackerDb extends Dexie {
       photos: 'id, readingId',
       syncState: 'key',
     });
+    this.version(3)
+      .stores({
+        meters: 'id, type, updatedAt, deletedAt',
+        readings: 'id, meterId, readAt, updatedAt, deletedAt',
+        photos: 'id, readingId',
+        syncState: 'key',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('readings')
+          .toCollection()
+          .modify((reading: Record<string, unknown>) => {
+            if (reading['consumed'] === undefined) {
+              reading['consumed'] = reading['value'] ?? 0;
+            }
+            delete reading['value'];
+          }),
+      );
   }
 }
 
