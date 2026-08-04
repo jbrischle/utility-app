@@ -1,11 +1,11 @@
 @if (notFound()) {
   <div class="card empty">
     <p>That meter could not be found.</p>
-    <a routerLink="/meters" class="btn">Back to meters</a>
+    <a class="btn" routerLink="/meters">Back to meters</a>
   </div>
 } @else if (meter(); as m) {
   <div class="page-head">
-    <a routerLink="/meters" class="muted back">← Meters</a>
+    <a class="muted back" routerLink="/meters">← Meters</a>
     <div class="row-between wrap">
       <div>
         <div class="row wrap title-row">
@@ -30,7 +30,7 @@
           >+ Add reading</a
         >
         <a [routerLink]="['/meters', m.id, 'edit']" class="btn btn-ghost">Edit</a>
-        <button class="btn btn-danger" (click)="confirmDeleteMeter.set(true)">Delete</button>
+        <button (click)="confirmDeleteMeter.set(true)" class="btn btn-danger">Delete</button>
       </div>
     </div>
   </div>
@@ -46,7 +46,7 @@
         >{{ stats().thisMonth | number: '1.0-2' }} <span class="unit">{{ m.unit }}</span></span
       >
       @if (stats().deltaPct !== null) {
-        <span class="delta" [class.up]="stats().deltaPct! > 0" [class.down]="stats().deltaPct! < 0">
+        <span [class.down]="stats().deltaPct! < 0" [class.up]="stats().deltaPct! > 0" class="delta">
           {{ stats().deltaPct! > 0 ? '▲' : '▼' }}
           {{ stats().deltaPct! | number: '1.0-1' }}% vs last month
         </span>
@@ -126,25 +126,25 @@
   <section class="card chart-card">
     <div class="row-between wrap">
       <h2>Usage over time</h2>
-      <div class="toggle" role="group" aria-label="Chart granularity">
+      <div aria-label="Chart granularity" class="toggle" role="group">
         <button
-          class="toggle-btn"
-          [class.active]="granularity() === 'interval'"
           (click)="setGranularity('interval')"
+          [class.active]="granularity() === 'interval'"
+          class="toggle-btn"
         >
           By reading
         </button>
         <button
-          class="toggle-btn"
-          [class.active]="granularity() === 'monthly'"
           (click)="setGranularity('monthly')"
+          [class.active]="granularity() === 'monthly'"
+          class="toggle-btn"
         >
           Monthly
         </button>
         <button
-          class="toggle-btn"
-          [class.active]="granularity() === 'yearly'"
           (click)="setGranularity('yearly')"
+          [class.active]="granularity() === 'yearly'"
+          class="toggle-btn"
         >
           Yearly
         </button>
@@ -152,10 +152,10 @@
     </div>
     @if (hasEnoughData()) {
       <app-usage-chart
+        [kind]="granularity() === 'interval' ? 'line' : 'bar'"
         [labels]="chartLabels()"
         [series]="chartSeries()"
         [unit]="m.unit"
-        [kind]="granularity() === 'interval' ? 'line' : 'bar'"
       />
     } @else {
       <div class="empty">
@@ -195,7 +195,7 @@
             @for (row of rows(); track row.reading.id) {
               <tr>
                 <td>{{ row.reading.readAt | date: 'mediumDate' }}</td>
-                <td class="num">{{ row.reading.value | number: '1.0-3' }}</td>
+                <td class="num">{{ row.reading.consumed | number: '1.0-3' }}</td>
                 <td class="num">
                   @if (row.usage === null) {
                     <span class="muted">—</span>
@@ -222,10 +222,10 @@
                 <td>
                   @if (row.reading.photoId && photoUrl(row.reading.photoId)) {
                     <button
-                      type="button"
-                      class="thumb"
                       (click)="openPhoto(row.reading.photoId)"
                       aria-label="View photo"
+                      class="thumb"
+                      type="button"
                     >
                       <img [src]="photoUrl(row.reading.photoId)" alt="Reading photo" />
                     </button>
@@ -236,13 +236,13 @@
                 <td class="actions-col">
                   <div class="row">
                     <a
-                      class="btn btn-ghost btn-sm"
                       [routerLink]="['/meters', m.id, 'readings', row.reading.id, 'edit']"
+                      class="btn btn-ghost btn-sm"
                       >Edit</a
                     >
                     <button
-                      class="btn btn-danger btn-sm"
                       (click)="confirmDeleteReading.set(row.reading.id)"
+                      class="btn btn-danger btn-sm"
                     >
                       Delete
                     </button>
@@ -258,12 +258,12 @@
 
   <!-- Delete meter confirm -->
   @if (confirmDeleteMeter()) {
-    <div class="modal-backdrop" (click)="confirmDeleteMeter.set(false)">
+    <div (click)="confirmDeleteMeter.set(false)" class="modal-backdrop">
       <div
+        (click)="$event.stopPropagation()"
+        aria-modal="true"
         class="modal card"
         role="alertdialog"
-        aria-modal="true"
-        (click)="$event.stopPropagation()"
       >
         <h3>Delete this meter?</h3>
         <p>
@@ -271,8 +271,8 @@
           undone from the app.
         </p>
         <div class="row wrap">
-          <button class="btn btn-ghost" (click)="confirmDeleteMeter.set(false)">Cancel</button>
-          <button class="btn btn-danger" (click)="deleteMeter()">Delete meter</button>
+          <button (click)="confirmDeleteMeter.set(false)" class="btn btn-ghost">Cancel</button>
+          <button (click)="deleteMeter()" class="btn btn-danger">Delete meter</button>
         </div>
       </div>
     </div>
@@ -280,18 +280,18 @@
 
   <!-- Delete reading confirm -->
   @if (confirmDeleteReading(); as rid) {
-    <div class="modal-backdrop" (click)="confirmDeleteReading.set(null)">
+    <div (click)="confirmDeleteReading.set(null)" class="modal-backdrop">
       <div
+        (click)="$event.stopPropagation()"
+        aria-modal="true"
         class="modal card"
         role="alertdialog"
-        aria-modal="true"
-        (click)="$event.stopPropagation()"
       >
         <h3>Delete this reading?</h3>
         <p>This reading will be removed from the history and all calculations.</p>
         <div class="row wrap">
-          <button class="btn btn-ghost" (click)="confirmDeleteReading.set(null)">Cancel</button>
-          <button class="btn btn-danger" (click)="deleteReading(rid)">Delete reading</button>
+          <button (click)="confirmDeleteReading.set(null)" class="btn btn-ghost">Cancel</button>
+          <button (click)="deleteReading(rid)" class="btn btn-danger">Delete reading</button>
         </div>
       </div>
     </div>
@@ -299,8 +299,8 @@
 
   <!-- Photo viewer -->
   @if (viewPhotoUrl(); as url) {
-    <div class="modal-backdrop" (click)="closePhoto()">
-      <img class="photo-full" [src]="url" alt="Meter reading photo" />
+    <div (click)="closePhoto()" class="modal-backdrop">
+      <img [src]="url" alt="Meter reading photo" class="photo-full" />
     </div>
   }
 }

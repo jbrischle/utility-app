@@ -25,15 +25,15 @@
       </label>
       <input
         #valueInput
-        [formField]="readingForm.value"
+        [formField]="readingForm.consumed"
         id="value"
         inputmode="decimal"
         placeholder="e.g. 14523"
         step="any"
         type="number"
       />
-      @if (readingForm.value().touched() && readingForm.value().invalid()) {
-        @for (error of readingForm.value().errors(); track error.kind) {
+      @if (readingForm.consumed().touched() && readingForm.consumed().invalid()) {
+        @for (error of readingForm.consumed().errors(); track error.kind) {
           <span class="field-error">{{ error.message }}</span>
         }
       }

@@ -19,7 +19,7 @@ import { Reading, ReadingWithUsage } from '../models/reading.model';
 /** Extracts the value to aggregate from a reading. */
 export type ValueFn = (r: Reading) => number;
 
-export const CONSUMED: ValueFn = (r) => r.value;
+export const CONSUMED: ValueFn = (r) => r.consumed;
 export const PRODUCED: ValueFn = (r) => r.produced ?? 0;
 
 /** Calendar-day ordinal (days since epoch) for a date, ignoring time of day. */
@@ -49,7 +49,7 @@ export class UsageService {
         continue;
       }
       const prev = sorted[i - 1];
-      const usage = reading.value - prev.value;
+      const usage = reading.consumed - prev.consumed;
       const producedUsage =
         reading.produced !== null && prev.produced !== null
           ? reading.produced - prev.produced
@@ -116,6 +116,26 @@ export class UsageService {
     return total;
   }
 
+  /** Aggregates usage into monthly totals, returned sorted ascending. */
+  monthlyTotals(
+    readings: Reading[],
+    selector: ValueFn = CONSUMED,
+  ): { label: string; total: number }[] {
+    return this.periodTotals(
+      readings,
+      selector,
+      (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
+    );
+  }
+
+  /** Aggregates usage into yearly totals, returned sorted ascending. */
+  yearlyTotals(
+    readings: Reading[],
+    selector: ValueFn = CONSUMED,
+  ): { label: string; total: number }[] {
+    return this.periodTotals(readings, selector, (d) => `${d.getUTCFullYear()}`);
+  }
+
   /** Aggregates daily-distributed usage into buckets keyed by a period function. */
   private periodTotals(
     readings: Reading[],
@@ -140,25 +160,5 @@ export class UsageService {
     return [...totals.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([label, total]) => ({ label, total }));
-  }
-
-  /** Aggregates usage into monthly totals, returned sorted ascending. */
-  monthlyTotals(
-    readings: Reading[],
-    selector: ValueFn = CONSUMED,
-  ): { label: string; total: number }[] {
-    return this.periodTotals(
-      readings,
-      selector,
-      (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
-    );
-  }
-
-  /** Aggregates usage into yearly totals, returned sorted ascending. */
-  yearlyTotals(
-    readings: Reading[],
-    selector: ValueFn = CONSUMED,
-  ): { label: string; total: number }[] {
-    return this.periodTotals(readings, selector, (d) => `${d.getUTCFullYear()}`);
   }
 }

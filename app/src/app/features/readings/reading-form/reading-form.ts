@@ -13,29 +13,8 @@ import { form, FormField, min, required, submit } from '@angular/forms/signals';
 import { LocalStore } from '../../../data/local-store';
 import { resizeImage } from '../../../shared/image.util';
 import { UTILITY_LABELS } from '../../../models/utility-type';
-import { Reading } from '../../../models/reading.model';
+import { Reading, ReadingInput } from '../../../models/reading.model';
 import { toSignal } from '@angular/core/rxjs-interop';
-
-function pad(n: number): string {
-  return String(n).padStart(2, '0');
-}
-
-function toDateInput(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function fromDateInput(value: string): string {
-  const [year, month, day] = value.split('-').map(Number);
-  return new Date(year, month - 1, day).toISOString();
-}
-
-interface ReadingFormModel {
-  value: number | null;
-  produced: number | null;
-  readAt: string;
-  note: string;
-}
 
 @Component({
   selector: 'app-reading-form',
@@ -52,29 +31,16 @@ export class ReadingForm {
   readonly saving = signal(false);
   readonly previewUrl = signal<string | null>(null);
   readonly hasPhoto = computed(() => this.previewUrl() !== null);
-  readonly model = signal<ReadingFormModel>({
-    value: null,
+  readonly model = signal<ReadingInput>({
+    consumed: 0,
     produced: 0,
-    readAt: toDateInput(new Date().toISOString()),
+    readAt: this.toDateInput(new Date().toISOString()),
     note: '',
   });
   readonly readingForm = form(this.model, (p) => {
-    required(p.value, { message: 'Enter the current meter reading.' });
-    min(p.value, 0, { message: 'The reading must be zero or greater.' });
+    required(p.consumed, { message: 'Enter the current meter reading.' });
+    min(p.consumed, 0, { message: 'The reading must be zero or greater.' });
     required(p.readAt, { message: 'Pick a date.' });
-  });
-  /** Production is validated manually since it only applies to electricity meters. */
-  readonly producedInvalid = computed(
-    () => this.isElectricity() && (this.model().produced === null || this.model().produced! < 0),
-  );
-  readonly isEdit = computed(() => !!this.readingId());
-  private readonly store = inject(LocalStore);
-  readonly meter = computed(() => {
-    const meterId = this.meterId();
-    if (meterId) {
-      return this.store.getMeterById(meterId);
-    }
-    return undefined;
   });
   readonly isElectricity = computed(() => {
     const meter = this.meter();
@@ -83,12 +49,24 @@ export class ReadingForm {
     }
     return false;
   });
+  /** Production is validated manually since it only applies to electricity meters. */
+  readonly producedInvalid = computed(
+    () => this.isElectricity() && (this.model().produced === null || this.model().produced! < 0),
+  );
+  private readonly store = inject(LocalStore);
   private readonly route = inject(ActivatedRoute);
   private readonly routerParamMap = toSignal(this.route.paramMap);
   readonly readingId = computed(() => this.routerParamMap()?.get('id'));
+  readonly isEdit = computed(() => !!this.readingId());
   readonly meterId = computed(() => this.routerParamMap()?.get('meterId'));
+  readonly meter = computed(() => {
+    const meterId = this.meterId();
+    if (meterId) {
+      return this.store.getMeterById(meterId);
+    }
+    return undefined;
+  });
   private readonly router = inject(Router);
-  // Photo state
   private newPhoto: Blob | null = null;
   private existingPhotoId: string | null = null;
   private removedExisting = false;
@@ -166,9 +144,9 @@ export class ReadingForm {
       return;
     }
     this.model.set({
-      value: reading.value,
+      consumed: reading.consumed,
       produced: reading.produced,
-      readAt: toDateInput(reading.readAt),
+      readAt: this.toDateInput(reading.readAt),
       note: reading.note,
     });
     this.existingPhotoId = reading.photoId;
@@ -195,7 +173,7 @@ export class ReadingForm {
 
     const readAtValue = this.model().readAt;
     if (!readAtValue) return null;
-    const targetIso = fromDateInput(readAtValue);
+    const targetIso = this.fromDateInput(readAtValue);
     const candidates = this.store
       .readingsForMeter(meterId)
       .filter((r) => r.id !== readingId && r.readAt < targetIso);
@@ -208,10 +186,10 @@ export class ReadingForm {
     const prev = this.previousReading();
     if (!prev) return messages;
     const m = this.model();
-    if (m.value !== null && m.value < prev.value) {
+    if (m.consumed !== null && m.consumed < prev.consumed) {
       const label = this.isElectricity() ? 'Consumed' : 'Reading';
       messages.push(
-        `${label} (${m.value} ${unit}) is lower than the previous reading (${prev.value} ${unit}).`,
+        `${label} (${m.consumed} ${unit}) is lower than the previous reading (${prev.consumed} ${unit}).`,
       );
     }
     if (
@@ -238,9 +216,9 @@ export class ReadingForm {
     const raw = this.model();
     const input = {
       meterId: meterId,
-      value: raw.value!,
+      consumed: raw.consumed,
       produced: this.isElectricity() ? raw.produced : null,
-      readAt: fromDateInput(raw.readAt),
+      readAt: this.fromDateInput(raw.readAt),
       note: raw.note,
     };
     try {
@@ -260,5 +238,19 @@ export class ReadingForm {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  private pad(n: number): string {
+    return String(n).padStart(2, '0');
+  }
+
+  private toDateInput(iso: string): string {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${this.pad(d.getMonth() + 1)}-${this.pad(d.getDate())}`;
+  }
+
+  private fromDateInput(value: string): string {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day).toISOString();
   }
 }

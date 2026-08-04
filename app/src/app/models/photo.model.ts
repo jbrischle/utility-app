@@ -1,4 +1,4 @@
-export interface PhotoBlob {
+export interface PhotoInput {
   id: string;
   readingId: string;
   mimeType: string;

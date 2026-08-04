@@ -47,7 +47,7 @@ export class Dashboard {
       const last = this.usage.withUsage(own).at(-1);
       return {
         meter,
-        latestValue: last?.reading.value ?? null,
+        latestValue: last?.reading.consumed ?? null,
         latestAt: last?.reading.readAt ?? null,
         latestUsage: last?.usage ?? null,
       };

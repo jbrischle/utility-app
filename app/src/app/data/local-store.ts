@@ -1,8 +1,8 @@
 import { computed, Injectable, signal, Signal } from '@angular/core';
 import { db } from './db';
 import { Meter, MeterInput } from '../models/meter.model';
-import { Reading, ReadingInput } from '../models/reading.model';
-import { PhotoBlob } from '../models/photo.model';
+import { Reading, ReadingStoreInput } from '../models/reading.model';
+import { PhotoInput } from '../models/photo.model';
 import { unitForType } from '../models/utility-type';
 
 function uuid(): string {
@@ -109,7 +109,7 @@ export class LocalStore {
     return reading ? { ...reading, produced: reading.produced ?? null } : undefined;
   }
 
-  async addReading(input: ReadingInput, photo?: Blob): Promise<Reading> {
+  async addReading(input: ReadingStoreInput, photo?: Blob): Promise<Reading> {
     const ts = now();
     let photoId: string | null = null;
     if (photo) {
@@ -118,7 +118,7 @@ export class LocalStore {
     const reading: Reading = {
       id: uuid(),
       meterId: input.meterId,
-      value: input.value,
+      consumed: input.consumed,
       produced: input.produced,
       readAt: input.readAt,
       note: input.note.trim(),
@@ -139,7 +139,7 @@ export class LocalStore {
 
   async updateReading(
     id: string,
-    input: ReadingInput,
+    input: ReadingStoreInput,
     photoChange?: { photo: Blob | null },
   ): Promise<void> {
     const existing = await db.readings.get(id);
@@ -156,7 +156,7 @@ export class LocalStore {
     }
     const updated: Reading = {
       ...existing,
-      value: input.value,
+      consumed: input.consumed,
       produced: input.produced,
       readAt: input.readAt,
       note: input.note.trim(),
@@ -175,7 +175,7 @@ export class LocalStore {
     await this.reloadReadings();
   }
 
-  async getPhoto(id: string): Promise<PhotoBlob | undefined> {
+  async getPhoto(id: string): Promise<PhotoInput | undefined> {
     return db.photos.get(id);
   }
 
@@ -245,7 +245,7 @@ export class LocalStore {
   }
 
   /** Stores a photo blob if not already present (idempotent). */
-  async putPhoto(photo: PhotoBlob): Promise<void> {
+  async putPhoto(photo: PhotoInput): Promise<void> {
     const existing = await db.photos.get(photo.id);
     if (!existing) await db.photos.put(photo);
   }
@@ -282,7 +282,7 @@ export class LocalStore {
   }
 
   private async savePhoto(readingId: string, data: Blob): Promise<string> {
-    const photo: PhotoBlob = {
+    const photo: PhotoInput = {
       id: uuid(),
       readingId,
       mimeType: data.type || 'image/jpeg',

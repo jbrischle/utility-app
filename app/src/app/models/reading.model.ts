@@ -2,7 +2,7 @@ export interface Reading {
   id: string;
   meterId: string;
   /** Cumulative consumed total (grid draw for electricity, volume for water). */
-  value: number;
+  consumed: number;
   /** Cumulative produced/fed-in total. Only used by electricity meters; null otherwise. */
   produced: number | null;
   readAt: string;
@@ -13,7 +13,11 @@ export interface Reading {
   deletedAt: string | null;
 }
 
-export type ReadingInput = Pick<Reading, 'meterId' | 'value' | 'produced' | 'readAt' | 'note'>;
+export type ReadingInput = Pick<Reading, 'consumed' | 'produced' | 'readAt' | 'note'>;
+export type ReadingStoreInput = Pick<
+  Reading,
+  'meterId' | 'consumed' | 'produced' | 'readAt' | 'note'
+>;
 
 export interface ReadingWithUsage {
   reading: Reading;

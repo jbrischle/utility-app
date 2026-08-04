@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { UsageService, calendarDay, PRODUCED } from './usage';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { calendarDay, PRODUCED, UsageService } from './usage';
 import { Reading } from '../models/reading.model';
 
 function reading(
@@ -11,7 +11,7 @@ function reading(
   return {
     id,
     meterId: 'm1',
-    value,
+    consumed: value,
     produced,
     readAt,
     note: '',

@@ -5,49 +5,49 @@
  */
 
 export interface Meter {
-  id: string;
-  name: string;
-  type: string;
-  unit: string;
-  location: string;
-  serialNumber: string;
-  notes: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
+    id: string;
+    name: string;
+    type: string;
+    unit: string;
+    location: string;
+    serialNumber: string;
+    notes: string;
+    createdAt: string;
+    updatedAt: string;
+    deletedAt: string | null;
 }
 
 export interface Reading {
-  id: string;
-  meterId: string;
-  value: number;
-  produced: number | null;
-  readAt: string;
-  note: string;
-  photoId: string | null;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
+    id: string;
+    meterId: string;
+    consumed: number;
+    produced: number | null;
+    readAt: string;
+    note: string;
+    photoId: string | null;
+    createdAt: string;
+    updatedAt: string;
+    deletedAt: string | null;
 }
 
 export interface PhotoInput {
-  id: string;
-  readingId: string;
-  mimeType: string;
-  data: Uint8Array;
-  createdAt: string;
+    id: string;
+    readingId: string;
+    mimeType: string;
+    data: Uint8Array;
+    createdAt: string;
 }
 
 export interface PhotoRow extends PhotoInput {
-  data: Buffer;
+    data: Buffer;
 }
 
 export interface Changes {
-  meters: Meter[];
-  readings: Reading[];
+    meters: Meter[];
+    readings: Reading[];
 }
 
 export interface ApplyResult {
-  meters: number;
-  readings: number;
+    meters: number;
+    readings: number;
 }

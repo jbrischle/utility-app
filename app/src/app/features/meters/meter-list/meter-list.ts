@@ -21,12 +21,10 @@ interface MeterCard {
   styleUrl: './meter-list.css',
 })
 export class MeterList {
-  private readonly store = inject(LocalStore);
-  private readonly usage = inject(UsageService);
-
   readonly labels = UTILITY_LABELS;
+  private readonly store = inject(LocalStore);
   readonly ready = this.store.ready;
-
+  private readonly usage = inject(UsageService);
   readonly cards = computed<MeterCard[]>(() => {
     const readings = this.store.readings();
     return this.store.meters().map((meter) => {
@@ -35,7 +33,7 @@ export class MeterList {
       const last = withUsage.at(-1);
       return {
         meter,
-        latestValue: last?.reading.value ?? null,
+        latestValue: last?.reading.consumed ?? null,
         latestAt: last?.reading.readAt ?? null,
         latestUsage: last?.usage ?? null,
         readingCount: own.length,

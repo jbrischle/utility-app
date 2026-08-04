@@ -1,7 +1,7 @@
 import Dexie, { Table } from 'dexie';
 import { Meter } from '../models/meter.model';
 import { Reading } from '../models/reading.model';
-import { PhotoBlob } from '../models/photo.model';
+import { PhotoInput } from '../models/photo.model';
 
 /** Per-server sync cursor. `key` is the configured server URL. */
 export interface SyncState {
@@ -19,7 +19,7 @@ export interface SyncState {
 export class MeterTrackerDb extends Dexie {
   meters!: Table<Meter, string>;
   readings!: Table<Reading, string>;
-  photos!: Table<PhotoBlob, string>;
+  photos!: Table<PhotoInput, string>;
   syncState!: Table<SyncState, string>;
 
   constructor() {
