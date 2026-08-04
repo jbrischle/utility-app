@@ -40,11 +40,11 @@ export class MeterForm {
     required(p.name, { message: 'A name is required.' });
     maxLength(p.name, 80, { message: 'Use at most 80 characters.' });
   });
+  readonly isEdit = computed(() => !!this.id());
   private readonly store = inject(LocalStore);
   private readonly route = inject(ActivatedRoute);
   private readonly routerParamMap = toSignal(this.route.paramMap);
   readonly id = computed(() => this.routerParamMap()?.get('id'));
-  readonly isEdit = computed(() => !!this.id());
   private readonly router = inject(Router);
   private patched = false;
 
@@ -89,7 +89,7 @@ export class MeterForm {
       const value = this.model();
       if (this.isEdit()) {
         await this.store.updateMeter(id, value);
-        await this.router.navigate(['/meters', this.id]);
+        await this.router.navigate(['/meters', id]);
       } else {
         const meter = await this.store.addMeter(value);
         await this.router.navigate(['/meters', meter.id]);
