@@ -1,0 +1,29 @@
+services:
+  meter-sync:
+    build: .
+    image: meter-tracker-server
+    container_name: meter-tracker-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+      - DB_PATH=/data/meters.db
+    volumes:
+      # Named volume keeps the SQLite database across container restarts/rebuilds.
+      - meter-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  meter-data:
