@@ -2,6 +2,7 @@ import Dexie, { Table } from 'dexie';
 import { Meter } from '../models/meter.model';
 import { Reading } from '../models/reading.model';
 import { PhotoInput } from '../models/photo.model';
+import { Household } from '../models/household.model';
 
 /** Per-server sync cursor. `key` is the configured server URL. */
 export interface SyncState {
@@ -21,6 +22,7 @@ export class MeterTrackerDb extends Dexie {
   readings!: Table<Reading, string>;
   photos!: Table<PhotoInput, string>;
   syncState!: Table<SyncState, string>;
+  households!: Table<Household, string>;
 
   constructor() {
     super('meter-tracker');
@@ -51,6 +53,23 @@ export class MeterTrackerDb extends Dexie {
               reading['consumed'] = reading['value'] ?? 0;
             }
             delete reading['value'];
+          }),
+      );
+    this.version(4)
+      .stores({
+        meters: 'id, type, householdId, updatedAt, deletedAt',
+        readings: 'id, meterId, readAt, updatedAt, deletedAt',
+        photos: 'id, readingId',
+        syncState: 'key',
+        households: 'id, updatedAt, deletedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('meters')
+          .toCollection()
+          .modify((meter: Record<string, unknown>) => {
+            // Leaves updatedAt untouched so this does not churn the sync cursor.
+            meter['householdId'] ??= null;
           }),
       );
   }

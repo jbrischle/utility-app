@@ -37,6 +37,19 @@
     </div>
 
     <div class="field">
+      <label for="household">Household <span class="muted">(optional)</span></label>
+      <select [formField]="meterForm.householdId" id="household">
+        <option value="">Unassigned</option>
+        @for (h of households(); track h.id) {
+          <option [value]="h.id">{{ h.name }}</option>
+        }
+      </select>
+      @if (households().length === 0) {
+        <span class="muted small">Create households in Settings to group your meters.</span>
+      }
+    </div>
+
+    <div class="field">
       <label for="location">Location <span class="muted">(optional)</span></label>
       <input
         [formField]="meterForm.location"

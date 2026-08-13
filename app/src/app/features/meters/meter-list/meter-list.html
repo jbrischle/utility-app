@@ -18,6 +18,7 @@
           <span class="muted count">{{ card.readingCount }} readings</span>
         </div>
         <h3 class="meter-name">{{ card.meter.name }}</h3>
+        <div class="muted household">{{ card.householdName ?? 'Unassigned' }}</div>
         @if (card.meter.serialNumber) {
           <div class="muted serial">S/N {{ card.meter.serialNumber }}</div>
         }

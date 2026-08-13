@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { LocalStore } from '../data/local-store';
 import { Meter } from '../models/meter.model';
 import { Reading } from '../models/reading.model';
+import { Household } from '../models/household.model';
 
 export type SyncStatus = 'disabled' | 'idle' | 'syncing' | 'offline' | 'error';
 
@@ -13,6 +14,7 @@ interface ChangesResponse {
   serverTime: string;
   meters: Meter[];
   readings: Reading[];
+  households?: Household[];
 }
 
 /**
@@ -96,14 +98,15 @@ export class SyncService {
       const pull = await this.getJson<ChangesResponse>(
         `${base}/sync/changes?since=${encodeURIComponent(since ?? '')}`,
       );
-      await this.store.mergeRemote(pull.meters ?? [], pull.readings ?? []);
+      await this.store.mergeRemote(pull.meters ?? [], pull.readings ?? [], pull.households ?? []);
 
       // 2. Push local changes since the last cursor.
       const local = await this.store.changedSince(since);
-      if (local.meters.length || local.readings.length) {
+      if (local.meters.length || local.readings.length || local.households.length) {
         await this.postJson(`${base}/sync/changes`, {
           meters: local.meters,
           readings: local.readings,
+          households: local.households,
         });
       }
 
@@ -125,6 +128,20 @@ export class SyncService {
     } finally {
       this.inFlight = false;
     }
+  }
+
+  /**
+   * Drops the sync cursor and syncs again, so the whole local dataset is pushed
+   * to the server. Needed after the server database has been rebuilt: without
+   * it the next push would only carry recent changes and the server would stay
+   * silently incomplete.
+   */
+  async fullResync(): Promise<void> {
+    const base = this.serverUrlSig();
+    if (!base) return;
+    await this.store.clearLastSyncAt(base);
+    this.lastSyncAtSig.set(null);
+    await this.syncNow();
   }
 
   private async syncPhotos(base: string): Promise<void> {

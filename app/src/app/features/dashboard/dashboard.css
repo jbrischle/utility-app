@@ -1,25 +1,74 @@
 .page-head {
   margin-bottom: 20px;
 }
-.section-title {
-  margin: 28px 0 16px;
+.household + .household {
+  margin-top: 28px;
+}
+.household-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.household-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.chevron {
+  display: inline-block;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+}
+.chevron-open {
+  transform: rotate(90deg);
+}
+.meter-count {
+  margin-left: auto;
+}
+.household-name {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.role-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.summary-grid {
+.usage-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
+  margin-top: 4px;
 }
-.summary {
+.usage {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding-left: 12px;
   border-left: 4px solid var(--color-border);
 }
-.summary-electricity {
+.usage-electricity {
   border-left-color: var(--color-electricity);
 }
-.summary-water {
+.usage-water {
   border-left-color: var(--color-water);
 }
 .summary-label {
@@ -51,6 +100,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  margin-top: 16px;
 }
 .meter-card {
   display: flex;

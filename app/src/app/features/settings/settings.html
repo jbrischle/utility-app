@@ -3,6 +3,105 @@
 </div>
 
 <section class="card">
+  <h2>Households</h2>
+  <p class="muted">
+    Group your meters by dwelling unit so the dashboard can total their usage. Mark the household
+    whose meters measure the whole property as a building total.
+  </p>
+
+  @if (households().length > 0) {
+    <ul class="household-list">
+      @for (h of households(); track h.id) {
+        <li class="household-row">
+          @if (editingId() === h.id) {
+            <div class="household-edit">
+              <input
+                aria-label="Household name"
+                autocomplete="off"
+                type="text"
+                [ngModel]="editName()"
+                (ngModelChange)="editName.set($event)"
+              />
+              <select
+                aria-label="Household role"
+                [ngModel]="editRole()"
+                (ngModelChange)="editRole.set($event)"
+              >
+                @for (role of roles; track role) {
+                  <option [value]="role">{{ roleLabels[role] }}</option>
+                }
+              </select>
+              <div class="row wrap">
+                <button type="button" class="btn btn-primary btn-sm" (click)="saveEdit()">
+                  Save
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEdit()">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          } @else {
+            <div class="household-info">
+              <span class="household-name">{{ h.name }}</span>
+              <span class="muted small">
+                {{ roleLabels[h.role] }} ·
+                {{ meterCounts().get(h.id) ?? 0 }}
+                {{ (meterCounts().get(h.id) ?? 0) === 1 ? 'meter' : 'meters' }}
+              </span>
+            </div>
+            <div class="row wrap">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit(h)">
+                Rename
+              </button>
+              <button
+                type="button"
+                class="btn btn-danger btn-sm"
+                (click)="confirmDeleteId.set(h.id)"
+              >
+                Delete
+              </button>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="muted small">No households yet. All meters show as unassigned on the dashboard.</p>
+  }
+
+  <form class="household-add" (submit)="addHousehold(); $event.preventDefault()">
+    <div class="field">
+      <label for="householdName">New household</label>
+      <input
+        id="householdName"
+        name="householdName"
+        type="text"
+        autocomplete="off"
+        placeholder="e.g. Second floor"
+        [ngModel]="newName()"
+        (ngModelChange)="newName.set($event)"
+      />
+    </div>
+    <div class="field">
+      <label for="householdRole">Role</label>
+      <select
+        id="householdRole"
+        name="householdRole"
+        [ngModel]="newRole()"
+        (ngModelChange)="newRole.set($event)"
+      >
+        @for (role of roles; track role) {
+          <option [value]="role">{{ roleLabels[role] }}</option>
+        }
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary" [disabled]="!newName().trim()">
+      Add household
+    </button>
+  </form>
+</section>
+
+<section class="card">
   <h2>Sync server</h2>
   <p class="muted">
     Point this device at your self-hosted sync server to back up data and keep multiple devices in
@@ -62,3 +161,39 @@
     }
   </dl>
 </section>
+
+@if (enabled()) {
+  <section class="card">
+    <h2>Rebuild server data</h2>
+    <p class="muted">
+      Normal syncs only send what changed since the last one. After you delete and recreate the
+      server database, run a full resync to push this device's entire dataset back up. Nothing is
+      deleted locally.
+    </p>
+    <button type="button" class="btn btn-ghost" (click)="fullResync()" [disabled]="resyncing()">
+      {{ resyncing() ? 'Resyncing…' : 'Full resync' }}
+    </button>
+  </section>
+}
+
+@if (pendingDelete(); as household) {
+  <div class="modal-backdrop" (click)="confirmDeleteId.set(null)">
+    <div class="modal card" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <h3>Delete this household?</h3>
+      <p>
+        “{{ household.name }}” will be removed. Its
+        {{ meterCounts().get(household.id) ?? 0 }}
+        {{ (meterCounts().get(household.id) ?? 0) === 1 ? 'meter' : 'meters' }} and all readings
+        stay untouched and show as unassigned.
+      </p>
+      <div class="row wrap">
+        <button type="button" class="btn btn-ghost" (click)="confirmDeleteId.set(null)">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-danger" (click)="deleteHousehold(household.id)">
+          Delete household
+        </button>
+      </div>
+    </div>
+  </div>
+}

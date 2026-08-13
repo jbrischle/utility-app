@@ -3,7 +3,7 @@
   <a class="btn btn-primary" routerLink="/meters/new">+ Add meter</a>
 </div>
 
-@if (ready() && cards().length === 0) {
+@if (ready() && !hasMeters()) {
   <div class="card empty">
     <h2>Welcome to Meter Tracker</h2>
     <p class="muted">
@@ -13,59 +13,93 @@
     <a class="btn btn-primary" routerLink="/meters/new">+ Add your first meter</a>
   </div>
 } @else {
-  @if (summaries().length > 0) {
-    <section class="summary-grid">
-      @for (s of summaries(); track s.type) {
-        <div class="card summary summary-{{ s.type }}">
-          <span class="summary-label"
-            >{{ s.label }} {{ s.producedMonthTotal !== null ? 'consumed ' : '' }}this month</span
+  @for (group of groups(); track group.id) {
+    <section class="household">
+      <div class="card household-summary">
+        <button
+          type="button"
+          class="household-toggle"
+          [attr.aria-expanded]="isExpanded(group.id)"
+          [attr.aria-controls]="'meters-' + group.id"
+          (click)="toggle(group.id)"
+        >
+          <span class="chevron" [class.chevron-open]="isExpanded(group.id)" aria-hidden="true"
+            >›</span
           >
-          <span class="summary-value"
-            >{{ s.monthTotal | number: '1.0-2' }} <span class="unit">{{ s.unit }}</span></span
-          >
-          @if (s.producedMonthTotal !== null) {
-            <span class="produced-line"
-              >Produced {{ s.producedMonthTotal | number: '1.0-2' }} {{ s.unit }}</span
-            >
+          <h2 class="household-name">{{ group.name }}</h2>
+          @if (group.role === 'building') {
+            <span class="role-badge">Building total</span>
           }
-          <span class="muted small"
-            >{{ s.meterCount }} {{ s.meterCount === 1 ? 'meter' : 'meters' }}</span
+          <span class="muted small meter-count"
+            >{{ group.cards.length }} {{ group.cards.length === 1 ? 'meter' : 'meters' }}</span
           >
+        </button>
+        @if (group.role === 'building') {
+          <p class="muted small">Measures the whole property, including the units.</p>
+        }
+        @if (group.id === unassignedId) {
+          <p class="muted small">
+            These meters have no household yet. Assign them when editing the meter.
+          </p>
+        }
+
+        @if (group.rows.length > 0) {
+          <div class="usage-grid">
+            @for (row of group.rows; track row.type) {
+              <div class="usage usage-{{ row.type }}">
+                <span class="summary-label">{{ row.label }} · last 12 months</span>
+                <span class="summary-value"
+                  >{{ row.consumed | number: '1.0-2' }}
+                  <span class="unit">{{ row.unit }}</span></span
+                >
+                @if (row.produced !== null) {
+                  <span class="produced-line"
+                    >Produced {{ row.produced | number: '1.0-2' }} {{ row.unit }}</span
+                  >
+                }
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="muted small">No meters assigned.</p>
+        }
+      </div>
+
+      @if (isExpanded(group.id) && group.cards.length > 0) {
+        <div class="meter-grid" [id]="'meters-' + group.id">
+          @for (card of group.cards; track card.meter.id) {
+            <div class="card meter-card">
+              <a [routerLink]="['/meters', card.meter.id]" class="meter-card-body">
+                <div class="row-between">
+                  <span class="badge badge-{{ card.meter.type }}">{{
+                    labels[card.meter.type]
+                  }}</span>
+                </div>
+                <h3 class="meter-name">{{ card.meter.name }}</h3>
+                @if (card.latestValue !== null) {
+                  <div class="latest-value">
+                    {{ card.latestValue | number: '1.0-3' }}
+                    <span class="unit">{{ card.meter.unit }}</span>
+                  </div>
+                  <div class="muted small">
+                    {{ card.latestAt | date: 'mediumDate' }}
+                    @if (card.latestUsage !== null) {
+                      · +{{ card.latestUsage | number: '1.0-2' }} {{ card.meter.unit }}
+                    }
+                  </div>
+                } @else {
+                  <div class="muted latest-value-empty">No readings yet</div>
+                }
+              </a>
+              <a
+                [routerLink]="['/meters', card.meter.id, 'readings', 'new']"
+                class="btn btn-primary btn-sm add-reading"
+                >+ Add reading</a
+              >
+            </div>
+          }
         </div>
       }
     </section>
   }
-
-  <h2 class="section-title">Your meters</h2>
-  <div class="meter-grid">
-    @for (card of cards(); track card.meter.id) {
-      <div class="card meter-card">
-        <a [routerLink]="['/meters', card.meter.id]" class="meter-card-body">
-          <div class="row-between">
-            <span class="badge badge-{{ card.meter.type }}">{{ labels[card.meter.type] }}</span>
-          </div>
-          <h3 class="meter-name">{{ card.meter.name }}</h3>
-          @if (card.latestValue !== null) {
-            <div class="latest-value">
-              {{ card.latestValue | number: '1.0-3' }}
-              <span class="unit">{{ card.meter.unit }}</span>
-            </div>
-            <div class="muted small">
-              {{ card.latestAt | date: 'mediumDate' }}
-              @if (card.latestUsage !== null) {
-                · +{{ card.latestUsage | number: '1.0-2' }} {{ card.meter.unit }}
-              }
-            </div>
-          } @else {
-            <div class="muted latest-value-empty">No readings yet</div>
-          }
-        </a>
-        <a
-          [routerLink]="['/meters', card.meter.id, 'readings', 'new']"
-          class="btn btn-primary btn-sm add-reading"
-          >+ Add reading</a
-        >
-      </div>
-    }
-  </div>
 }

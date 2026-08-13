@@ -65,7 +65,7 @@ All endpoints return JSON unless noted. Ids are always the client-generated UUID
 | ------------------------------- | ------------------------------------------------------------------------------ |
 | `GET /health`                   | Liveness check → `{ status, time }`.                                           |
 | `GET /sync/changes?since=<ISO>` | Records changed strictly after `since` (all if empty).                         |
-| `POST /sync/changes`            | Upsert `{ meters[], readings[] }` (last-write-wins).                           |
+| `POST /sync/changes`            | Upsert `{ households[], meters[], readings[] }` (last-write-wins).             |
 | `GET /photos/manifest`          | `{ ids: [...] }` of photo ids the server has.                                  |
 | `GET /photos/:id`               | Photo binary with its stored `Content-Type` (404 if unknown).                  |
 | `POST /photos`                  | Upload a photo (multipart: `id`, `readingId`, `mimeType`, `data`). Idempotent. |
@@ -74,6 +74,15 @@ Conflict resolution: on `POST /sync/changes` an incoming record overwrites the s
 only when its `updatedAt >= stored.updatedAt`. Soft deletes (`deletedAt` set, `updatedAt`
 bumped) propagate like any other edit. Photo blobs are immutable and transferred only when
 the peer is missing them.
+
+## Changing the schema
+
+There is no migration mechanism: `src/db.ts` only creates tables that do not exist yet, so an
+existing database never gains new columns. To apply a schema change, stop the server, delete
+the database file together with its `-wal` and `-shm` siblings, start the server (which
+recreates the schema) and then run **Settings → Full resync** in the app. The client holds the
+authoritative copy, so this rebuilds the server from it. Without the full resync the next push
+would only carry recent changes and the server would stay silently incomplete.
 
 ## Security
 
