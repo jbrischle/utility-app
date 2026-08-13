@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { LocalStore } from '../../data/local-store';
@@ -32,6 +32,7 @@ interface HouseholdGroup extends HouseholdSummary {
 export class Dashboard {
   readonly labels = UTILITY_LABELS;
   readonly unassignedId = UNASSIGNED_ID;
+  private readonly expandedIds = signal<ReadonlySet<string>>(new Set());
   private readonly store = inject(LocalStore);
   readonly ready = this.store.ready;
   private readonly usage = inject(UsageService);
@@ -67,4 +68,16 @@ export class Dashboard {
         .filter((card): card is MeterCard => !!card),
     }));
   });
+
+  isExpanded(householdId: string): boolean {
+    return this.expandedIds().has(householdId);
+  }
+
+  toggle(householdId: string): void {
+    const next = new Set(this.expandedIds());
+    if (!next.delete(householdId)) {
+      next.add(householdId);
+    }
+    this.expandedIds.set(next);
+  }
 }

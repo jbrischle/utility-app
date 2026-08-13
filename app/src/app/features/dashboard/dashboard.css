@@ -8,10 +8,33 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 16px;
 }
-.household-head {
+.household-toggle {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.chevron {
+  display: inline-block;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+}
+.chevron-open {
+  transform: rotate(90deg);
+}
+.meter-count {
+  margin-left: auto;
 }
 .household-name {
   margin: 0;
@@ -77,6 +100,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  margin-top: 16px;
 }
 .meter-card {
   display: flex;
