@@ -2,9 +2,15 @@ import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { LocalStore } from '../../data/local-store';
-import { CONSUMED, PRODUCED, UsageService } from '../../services/usage';
-import { UTILITY_LABELS, UTILITY_UNITS, UtilityType } from '../../models/utility-type';
+import { UsageService } from '../../services/usage';
+import { UTILITY_LABELS } from '../../models/utility-type';
 import { Meter } from '../../models/meter.model';
+import {
+  buildHouseholdSummaries,
+  HouseholdSummary,
+  rollingYear,
+  UNASSIGNED_ID,
+} from './household-summary';
 
 interface MeterCard {
   meter: Meter;
@@ -13,20 +19,8 @@ interface MeterCard {
   latestUsage: number | null;
 }
 
-interface TypeSummary {
-  type: UtilityType;
-  label: string;
-  unit: string;
-  monthTotal: number;
-  producedMonthTotal: number | null;
-  meterCount: number;
-}
-
-function startOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-function startOfNextMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth() + 1, 1);
+interface HouseholdGroup extends HouseholdSummary {
+  cards: MeterCard[];
 }
 
 @Component({
@@ -37,10 +31,13 @@ function startOfNextMonth(d: Date): Date {
 })
 export class Dashboard {
   readonly labels = UTILITY_LABELS;
+  readonly unassignedId = UNASSIGNED_ID;
   private readonly store = inject(LocalStore);
   readonly ready = this.store.ready;
   private readonly usage = inject(UsageService);
-  readonly cards = computed<MeterCard[]>(() => {
+  private readonly window = rollingYear(new Date());
+  readonly hasMeters = computed(() => this.store.meters().length > 0);
+  private readonly cards = computed<MeterCard[]>(() => {
     const readings = this.store.readings();
     return this.store.meters().map((meter) => {
       const own = readings.filter((r) => r.meterId === meter.id);
@@ -53,34 +50,21 @@ export class Dashboard {
       };
     });
   });
-  private readonly now = new Date();
-  readonly summaries = computed<TypeSummary[]>(() => {
-    const meters = this.store.meters();
-    const readings = this.store.readings();
-    const monthStart = startOfMonth(this.now);
-    const nextMonth = startOfNextMonth(this.now);
-    const types = [...new Set(meters.map((m) => m.type))];
-    return types.map((type) => {
-      const typeMeters = meters.filter((m) => m.type === type);
-      const monthTotal = typeMeters.reduce((sum, m) => {
-        const own = readings.filter((r) => r.meterId === m.id);
-        return sum + this.usage.totalForRange(own, monthStart, nextMonth, CONSUMED);
-      }, 0);
-      const producedMonthTotal =
-        type === 'electricity'
-          ? typeMeters.reduce((sum, m) => {
-              const own = readings.filter((r) => r.meterId === m.id);
-              return sum + this.usage.totalForRange(own, monthStart, nextMonth, PRODUCED);
-            }, 0)
-          : null;
-      return {
-        type,
-        label: UTILITY_LABELS[type],
-        unit: UTILITY_UNITS[type],
-        monthTotal,
-        producedMonthTotal,
-        meterCount: typeMeters.length,
-      };
-    });
+  readonly groups = computed<HouseholdGroup[]>(() => {
+    const byMeterId = new Map(this.cards().map((card) => [card.meter.id, card]));
+    const summaries = buildHouseholdSummaries(
+      this.store.households(),
+      this.store.meters(),
+      this.store.readings(),
+      this.usage,
+      this.window.from,
+      this.window.to,
+    );
+    return summaries.map((summary) => ({
+      ...summary,
+      cards: summary.meters
+        .map((meter) => byMeterId.get(meter.id))
+        .filter((card): card is MeterCard => !!card),
+    }));
   });
 }

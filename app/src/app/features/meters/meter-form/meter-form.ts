@@ -16,6 +16,8 @@ interface MeterFormModel {
   location: string;
   serialNumber: string;
   notes: string;
+  /** Empty string means unassigned; `<select>` cannot carry null. */
+  householdId: string;
 }
 
 @Component({
@@ -35,6 +37,7 @@ export class MeterForm {
     location: '',
     serialNumber: '',
     notes: '',
+    householdId: '',
   });
   readonly meterForm = form(this.model, (p) => {
     required(p.name, { message: 'A name is required.' });
@@ -42,6 +45,7 @@ export class MeterForm {
   });
   readonly isEdit = computed(() => !!this.id());
   private readonly store = inject(LocalStore);
+  readonly households = this.store.households;
   private readonly route = inject(ActivatedRoute);
   private readonly routerParamMap = toSignal(this.route.paramMap);
   readonly id = computed(() => this.routerParamMap()?.get('id'));
@@ -68,6 +72,7 @@ export class MeterForm {
           location: meter.location,
           serialNumber: meter.serialNumber,
           notes: meter.notes,
+          householdId: meter.householdId ?? '',
         });
         this.patched = true;
       });
@@ -79,15 +84,12 @@ export class MeterForm {
   }
 
   onSubmit(event: Event): void {
-    const id = this.id();
-    if (!id) {
-      return;
-    }
-
     event.preventDefault();
+    const id = this.id();
     submit(this.meterForm, async () => {
-      const value = this.model();
-      if (this.isEdit()) {
+      const { householdId, ...rest } = this.model();
+      const value = { ...rest, householdId: householdId || null };
+      if (id) {
         await this.store.updateMeter(id, value);
         await this.router.navigate(['/meters', id]);
       } else {

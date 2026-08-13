@@ -12,6 +12,7 @@ interface MeterCard {
   latestAt: string | null;
   latestUsage: number | null;
   readingCount: number;
+  householdName: string | null;
 }
 
 @Component({
@@ -27,6 +28,7 @@ export class MeterList {
   private readonly usage = inject(UsageService);
   readonly cards = computed<MeterCard[]>(() => {
     const readings = this.store.readings();
+    const householdNames = new Map(this.store.households().map((h) => [h.id, h.name]));
     return this.store.meters().map((meter) => {
       const own = readings.filter((r) => r.meterId === meter.id);
       const withUsage = this.usage.withUsage(own);
@@ -37,6 +39,7 @@ export class MeterList {
         latestAt: last?.reading.readAt ?? null,
         latestUsage: last?.usage ?? null,
         readingCount: own.length,
+        householdName: (meter.householdId && householdNames.get(meter.householdId)) || null,
       };
     });
   });

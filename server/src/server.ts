@@ -13,7 +13,7 @@ import {
   photoExists,
   getPhotoIds,
 } from "./db.ts";
-import type { Meter, Reading } from "./types.ts";
+import type { Household, Meter, Reading } from "./types.ts";
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -39,18 +39,20 @@ app.get("/health", (_req: Request, res: Response) => {
 app.get("/sync/changes", (req: Request, res: Response) => {
   const since =
     typeof req.query["since"] === "string" ? req.query["since"].trim() : "";
-  const { meters, readings } = getChanges(since || null);
-  res.json({ serverTime: nowIso(), meters, readings });
+  const { meters, readings, households } = getChanges(since || null);
+  res.json({ serverTime: nowIso(), meters, readings, households });
 });
 
 app.post("/sync/changes", (req: Request, res: Response) => {
   const body = (req.body ?? {}) as {
     meters?: Partial<Meter>[];
     readings?: Partial<Reading>[];
+    households?: Partial<Household>[];
   };
   const meters = Array.isArray(body.meters) ? body.meters : [];
   const readings = Array.isArray(body.readings) ? body.readings : [];
-  const applied = applyChanges(meters, readings);
+  const households = Array.isArray(body.households) ? body.households : [];
+  const applied = applyChanges(meters, readings, households);
   res.json({ serverTime: nowIso(), applied });
 });
 

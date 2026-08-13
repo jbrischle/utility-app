@@ -3,7 +3,19 @@ import { db } from './db';
 import { Meter, MeterInput } from '../models/meter.model';
 import { Reading, ReadingStoreInput } from '../models/reading.model';
 import { PhotoInput } from '../models/photo.model';
+import { Household, HouseholdInput } from '../models/household.model';
 import { unitForType } from '../models/utility-type';
+
+/** Records written before v4 carry no `householdId`; treat them as unassigned. */
+function normalizeMeter(meter: Meter): Meter {
+  return { ...meter, householdId: meter.householdId ?? null };
+}
+
+export interface LocalChanges {
+  meters: Meter[];
+  readings: Reading[];
+  households: Household[];
+}
 
 function uuid(): string {
   return crypto.randomUUID();
@@ -30,6 +42,9 @@ export class LocalStore {
   private readonly readingsSig = signal<Reading[]>([]);
   /** All non-deleted readings. */
   readonly readings: Signal<Reading[]> = this.readingsSig.asReadonly();
+  private readonly householdsSig = signal<Household[]>([]);
+  /** All non-deleted households, sorted by name. */
+  readonly households: Signal<Household[]> = this.householdsSig.asReadonly();
   private readonly readySig = signal(false);
   /** True once the initial load from IndexedDB has completed. */
   readonly ready: Signal<boolean> = this.readySig.asReadonly();
@@ -56,6 +71,7 @@ export class LocalStore {
       location: input.location.trim(),
       serialNumber: input.serialNumber.trim(),
       notes: input.notes.trim(),
+      householdId: input.householdId,
       createdAt: ts,
       updatedAt: ts,
       deletedAt: null,
@@ -78,6 +94,7 @@ export class LocalStore {
       location: input.location.trim(),
       serialNumber: input.serialNumber.trim(),
       notes: input.notes.trim(),
+      householdId: input.householdId,
       updatedAt: now(),
     };
     await db.meters.put(updated);
@@ -96,6 +113,53 @@ export class LocalStore {
       readings.filter((r) => !r.deletedAt).map((r) => ({ ...r, deletedAt: ts, updatedAt: ts })),
     );
     await this.reloadAll();
+  }
+
+  // ----- Households -------------------------------------------------------
+
+  getHouseholdById(id: string | null): Household | undefined {
+    return id ? this.householdsSig().find((h) => h.id === id) : undefined;
+  }
+
+  async addHousehold(input: HouseholdInput): Promise<Household> {
+    const ts = now();
+    const household: Household = {
+      id: uuid(),
+      name: input.name.trim(),
+      role: input.role,
+      createdAt: ts,
+      updatedAt: ts,
+      deletedAt: null,
+    };
+    await db.households.put(household);
+    await this.reloadHouseholds();
+    return household;
+  }
+
+  async updateHousehold(id: string, input: HouseholdInput): Promise<void> {
+    const existing = await db.households.get(id);
+    if (!existing) return;
+    await db.households.put({
+      ...existing,
+      name: input.name.trim(),
+      role: input.role,
+      updatedAt: now(),
+    });
+    await this.reloadHouseholds();
+  }
+
+  /**
+   * Soft-deletes a household without touching its meters. They keep their
+   * `householdId` and surface as unassigned, so undeleting restores the
+   * grouping. Rewriting every meter here would clobber concurrent edits from
+   * other devices under last-write-wins.
+   */
+  async deleteHousehold(id: string): Promise<void> {
+    const existing = await db.households.get(id);
+    if (!existing) return;
+    const ts = now();
+    await db.households.put({ ...existing, deletedAt: ts, updatedAt: ts });
+    await this.reloadHouseholds();
   }
 
   readingsForMeter(meterId: string): Reading[] {
@@ -184,17 +248,25 @@ export class LocalStore {
   // (including soft-deleted ones) without any UI component touching IndexedDB.
 
   /**
-   * Raw meters/readings whose `updatedAt` is strictly after `since` (soft-deleted
+   * Raw records whose `updatedAt` is strictly after `since` (soft-deleted
    * records included). Passing `null` returns everything. Used to build the push
    * payload of local changes.
    */
-  async changedSince(since: string | null): Promise<{ meters: Meter[]; readings: Reading[] }> {
-    const [meters, readings] = await Promise.all([db.meters.toArray(), db.readings.toArray()]);
-    const normalized = readings.map((r) => ({ ...r, produced: r.produced ?? null }));
-    if (!since) return { meters, readings: normalized };
+  async changedSince(since: string | null): Promise<LocalChanges> {
+    const [meters, readings, households] = await Promise.all([
+      db.meters.toArray(),
+      db.readings.toArray(),
+      db.households.toArray(),
+    ]);
+    const normalizedMeters = meters.map(normalizeMeter);
+    const normalizedReadings = readings.map((r) => ({ ...r, produced: r.produced ?? null }));
+    if (!since) {
+      return { meters: normalizedMeters, readings: normalizedReadings, households };
+    }
     return {
-      meters: meters.filter((m) => m.updatedAt > since),
-      readings: normalized.filter((r) => r.updatedAt > since),
+      meters: normalizedMeters.filter((m) => m.updatedAt > since),
+      readings: normalizedReadings.filter((r) => r.updatedAt > since),
+      households: households.filter((h) => h.updatedAt > since),
     };
   }
 
@@ -206,11 +278,12 @@ export class LocalStore {
   async mergeRemote(
     meters: Meter[],
     readings: Reading[],
-  ): Promise<{ meters: number; readings: number }> {
+    households: Household[] = [],
+  ): Promise<{ meters: number; readings: number; households: number }> {
     const meterPuts: Meter[] = [];
     for (const remote of meters) {
       const local = await db.meters.get(remote.id);
-      if (!local || remote.updatedAt > local.updatedAt) meterPuts.push(remote);
+      if (!local || remote.updatedAt > local.updatedAt) meterPuts.push(normalizeMeter(remote));
     }
     const readingPuts: Reading[] = [];
     for (const remote of readings) {
@@ -219,10 +292,20 @@ export class LocalStore {
         readingPuts.push({ ...remote, produced: remote.produced ?? null });
       }
     }
+    const householdPuts: Household[] = [];
+    for (const remote of households) {
+      const local = await db.households.get(remote.id);
+      if (!local || remote.updatedAt > local.updatedAt) householdPuts.push(remote);
+    }
     if (meterPuts.length) await db.meters.bulkPut(meterPuts);
     if (readingPuts.length) await db.readings.bulkPut(readingPuts);
-    if (meterPuts.length || readingPuts.length) await this.reloadAll();
-    return { meters: meterPuts.length, readings: readingPuts.length };
+    if (householdPuts.length) await db.households.bulkPut(householdPuts);
+    if (meterPuts.length || readingPuts.length || householdPuts.length) await this.reloadAll();
+    return {
+      meters: meterPuts.length,
+      readings: readingPuts.length,
+      households: householdPuts.length,
+    };
   }
 
   /** Ids of all photo blobs stored locally. */
@@ -259,15 +342,29 @@ export class LocalStore {
     await db.syncState.put({ key: serverUrl, lastSyncAt });
   }
 
+  /** Drops the cursor so the next sync pulls and pushes the full dataset. */
+  async clearLastSyncAt(serverUrl: string): Promise<void> {
+    await db.syncState.delete(serverUrl);
+  }
+
   private async reloadAll(): Promise<void> {
-    await Promise.all([this.reloadMeters(), this.reloadReadings()]);
+    await Promise.all([this.reloadMeters(), this.reloadReadings(), this.reloadHouseholds()]);
     this.readySig.set(true);
   }
 
   private async reloadMeters(): Promise<void> {
     const all = await db.meters.toArray();
-    const active = all.filter((m) => !m.deletedAt).sort((a, b) => a.name.localeCompare(b.name));
+    const active = all
+      .filter((m) => !m.deletedAt)
+      .map(normalizeMeter)
+      .sort((a, b) => a.name.localeCompare(b.name));
     this.metersSig.set(active);
+  }
+
+  private async reloadHouseholds(): Promise<void> {
+    const all = await db.households.toArray();
+    const active = all.filter((h) => !h.deletedAt).sort((a, b) => a.name.localeCompare(b.name));
+    this.householdsSig.set(active);
   }
 
   // ----- Photos -----------------------------------------------------------

@@ -10,7 +10,8 @@ An offline-first Angular PWA for tracking home utility meter readings (electrici
 - Warning when a new reading is lower than the previous one (likely typo).
 - Edit and (soft) delete meters and readings.
 - Optional photo per reading (captured/compressed and stored offline).
-- Dashboard with per-meter cards and monthly totals per utility type.
+- Group meters into **households** (managed under **Settings**); the dashboard shows one card
+  per household with rolling 12-month totals per utility type.
 - Per-meter usage charts with selectable granularity (by reading interval, monthly, or yearly).
 - Comparisons (this month vs last, per-day average) and summary totals (week / month / year).
 - Installable PWA that works fully offline.
@@ -54,7 +55,8 @@ npm test
 ```
 
 Unit tests (Vitest) cover the usage/period computations in
-`src/app/services/usage.ts`.
+`src/app/services/usage.ts` and the dashboard's household aggregation in
+`src/app/features/dashboard/household-summary.ts`.
 
 ## Architecture notes
 
