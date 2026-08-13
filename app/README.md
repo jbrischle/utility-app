@@ -41,10 +41,10 @@ Then open the printed local URL (default http://localhost:4200).
 npm run build
 ```
 
-The production bundle is emitted to `dist/meter-tracker/browser`. Serve that folder with any static file server to test offline/PWA behaviour, e.g.:
+The production bundle is emitted to `dist/meter-tracker`. Serve that folder with any static file server to test offline/PWA behaviour, e.g.:
 
 ```bash
-npx http-server dist/meter-tracker/browser
+npx http-server dist/meter-tracker
 ```
 
 ## Test
