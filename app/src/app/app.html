@@ -12,12 +12,13 @@
         <a routerLink="/meters" routerLinkActive="active">Meters</a>
         <a routerLink="/settings" routerLinkActive="active">Settings</a>
       </nav>
-      @if (enabled()) {
+      @if (configured()) {
         <button
           type="button"
           class="sync-chip sync-{{ status() }}"
-          (click)="syncNow()"
-          [disabled]="status() === 'syncing'"
+          [class.sync-attention]="needsAttention()"
+          (click)="activate()"
+          [disabled]="status() === 'syncing' || status() === 'photos'"
           [title]="
             lastSyncAt() ? 'Last sync: ' + (lastSyncAt() | date: 'medium') : 'Not synced yet'
           "

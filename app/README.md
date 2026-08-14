@@ -1,6 +1,6 @@
 # Meter Tracker (Offline PWA + optional sync)
 
-An offline-first Angular PWA for tracking home utility meter readings (electricity and water). All data is stored locally in the browser (IndexedDB); no server or account is required. An optional self-hosted server (see [`../server`](../server)) adds multi-device sync and backup. See `../docs/prd/` for the full product requirements.
+An offline-first Angular PWA for tracking home utility meter readings (electricity and water). All data is stored locally in the browser (IndexedDB); no server or account is required. An optional self-hosted [PocketBase](https://pocketbase.io) backend (see [`../pocketbase`](../pocketbase)) adds multi-device sync and backup.
 
 ## Features
 
@@ -15,7 +15,7 @@ An offline-first Angular PWA for tracking home utility meter readings (electrici
 - Per-meter usage charts with selectable granularity (by reading interval, monthly, or yearly).
 - Comparisons (this month vs last, per-day average) and summary totals (week / month / year).
 - Installable PWA that works fully offline.
-- **Optional multi-device sync** to a self-hosted server (configure under **Settings**).
+- **Optional multi-device sync** to a self-hosted PocketBase (configure under **Settings**).
 
 ## Tech stack
 
@@ -55,12 +55,20 @@ npm test
 ```
 
 Unit tests (Vitest) cover the usage/period computations in
-`src/app/services/usage.ts` and the dashboard's household aggregation in
-`src/app/features/dashboard/household-summary.ts`.
+`src/app/services/usage.ts`, the dashboard's household aggregation in
+`src/app/features/dashboard/household-summary.ts`, and the sync engine's merge,
+cursor and photo-queue behaviour in `src/app/services/sync.spec.ts` — the last
+of these runs against a fake gateway, so no PocketBase is needed.
+
+Wire-level behaviour is verified by hand instead; see the checklist under
+[Sync](#sync-optional). The split is deliberate: merge bugs fail _silently_ and
+are pure logic, so they are worth automating, whereas a wrong filter format or a
+botched upload fails loudly the first time it runs.
 
 ## Architecture notes
 
-- **`src/app/data/local-store.ts`** is the single data-access layer. It is the only module that touches IndexedDB, exposing signals (`meters`, `readings`) that the UI reacts to. Phase 2 (server sync) will layer on top of this without changing the UI.
+- **`src/app/data/local-store.ts`** is the single data-access layer. It is the only module that touches IndexedDB, exposing signals (`meters`, `readings`) that the UI reacts to.
+- **`src/app/services/pocketbase-gateway.ts`** is the mirror rule for the network: it is the only module that touches the PocketBase client. Everything above it works against that interface, which is what keeps the SDK's global state (base URL, auth store, auto-cancellation) owned by one file and lets the sync logic be tested without a server.
 - **`src/app/services/usage.ts`** holds all consumption math.
 - Every record carries `createdAt` / `updatedAt` / `deletedAt`; deletes are **soft**
   (records are hidden, not removed) so a future sync engine can propagate deletions.
@@ -72,27 +80,64 @@ Meters store cumulative totals, so the consumption of an interval is
 
 ## Sync (optional)
 
-Sync is off by default; the app is fully usable offline without any server. To enable it:
+Sync is off by default and the app never gates on it: with no server configured, or while
+signed out, everything works exactly as it does offline. To enable it:
 
-1. Run the sync server (see [`../server/README.md`](../server/README.md)).
-2. In the app, go to **Settings** and set the **Server URL** to your server's LAN address
-   (e.g. `http://192.168.1.50:3000`), then **Save & sync**.
+1. Run PocketBase (see [`../pocketbase`](../pocketbase)) and create an account for yourself
+   in the Dashboard under `utility_users`. There is no self-signup by design.
+2. In the app, open **Settings**, set the **Server URL**, **Save**, then sign in.
 
-Once configured, a status chip in the header shows the sync state (synced / syncing /
-offline / error) and lets you trigger **Sync now**. The app also syncs automatically on
-startup, when it comes back online, and periodically while online.
+A status chip in the header shows the state. Two of its states are ordinary and stay
+muted — _sync off_ and _offline_ — because an app built to work in a basement should not
+report the basement as a fault. Two draw attention because you can act on them: _sign in_
+(the session ended on its own) and _sync error_.
 
-- **`src/app/services/sync.ts`** is the sync engine. It depends only on `LocalStore` and
-  `fetch`, so Phase 1 data flows are unchanged — components keep reading/writing locally
-  and sync happens in the background.
-- **Conflict resolution** is last-write-wins by `updatedAt`; soft deletes propagate like
-  edits. Photos (immutable blobs) transfer in whichever direction a peer is missing them.
-- A per-server `lastSyncAt` cursor is stored in IndexedDB; the configured server URL is in
-  `localStorage`. Clearing the URL disables sync and the app behaves exactly as Phase 1.
+### How it works
+
+- **`src/app/services/sync.ts`** holds the cursor, merge rules and scheduling;
+  `pocketbase-gateway.ts` does the talking. The UI never waits on either.
+- **Every cycle pulls before it pushes.** This is a correctness invariant, not an
+  incidental ordering: conflicts are resolved on the client, so pushing first would let a
+  device overwrite an edit it has not seen.
+- **Conflicts** are last-write-wins on `updatedAt` — the clock of the device that made the
+  edit, which is what "who edited later" means. The **pull cursor** uses PocketBase's own
+  `updated` instead, because "what has the server seen" is a question about the server's
+  clock; a device whose clock ran fast would otherwise skip records permanently.
+- **Pulls are keyset-paginated** (`updated,id`) and the cursor advances per page, so an
+  interrupted sync resumes instead of restarting.
+- **Pushes create first** and fall back to update on `validation_pk_invalid`. That fallback
+  is normal traffic, not an error: most writes here are new readings.
+- **Photos** ride the reading's file field, uploaded and downloaded in a pass _after_ the
+  records so the app stays usable during a large backfill. They are downloaded eagerly —
+  a photo you can only see when you have signal defeats the point.
+- Soft deletes propagate as ordinary edits and destroy nothing, on either side.
+
+### Changing servers
+
+The token and cursor are deliberately **not** keyed by URL, because one PocketBase is
+often reachable at more than one address and re-pulling everything on each network change
+would be worse. Pointing the app at a genuinely different backend therefore needs
+**Full resync**, or it inherits a cursor that server never reached and silently skips
+older records.
+
+### Manual smoke checklist
+
+Run after changing anything in `sync.ts`, `pocketbase-gateway.ts` or `sync-mapping.ts`:
+
+1. Sign in; confirm the chip reaches _Synced_.
+2. Add a reading **with a photo**; confirm both the record and the image appear in the
+   PocketBase Dashboard.
+3. Load the app in a second browser profile, sign in, and confirm the reading **and its
+   photo** arrive.
+4. Go offline in both, edit the same reading in each, then reconnect. The **later** edit
+   must win in both places.
+5. Soft-delete a reading; confirm it disappears in both and that `deletedAt` is set —
+   rather than the record being gone — in the Dashboard.
+6. Sign out; confirm local data is untouched and the chip goes muted rather than red.
 
 ## Data & privacy
 
 All data lives in your browser's IndexedDB on this device. Clearing site data or
-uninstalling removes it. If you enable sync, data is also stored on **your own** server
-(private network only, no third parties) — see the security note in
-[`../server/README.md`](../server/README.md).
+uninstalling removes it — the app requests persistent storage after your first save to
+make eviction unlikely. If you enable sync, data is also stored on **your own** PocketBase;
+no third parties are involved.

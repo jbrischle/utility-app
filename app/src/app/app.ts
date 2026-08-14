@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { SyncService } from './services/sync';
 
 @Component({
@@ -11,17 +11,17 @@ import { SyncService } from './services/sync';
 })
 export class App {
   private readonly sync = inject(SyncService);
-
   readonly status = this.sync.status;
-  readonly lastSyncAt = this.sync.lastSyncAt;
-  readonly enabled = this.sync.enabled;
-
   readonly statusLabel = computed(() => {
     switch (this.status()) {
       case 'syncing':
         return 'Syncing…';
+      case 'photos':
+        return 'Photos…';
       case 'offline':
         return 'Offline';
+      case 'needsAuth':
+        return 'Sign in';
       case 'error':
         return 'Sync error';
       case 'idle':
@@ -30,8 +30,18 @@ export class App {
         return 'Sync off';
     }
   });
+  readonly needsAttention = computed(
+    () => this.status() === 'needsAuth' || this.status() === 'error',
+  );
+  readonly lastSyncAt = this.sync.lastSyncAt;
+  readonly configured = this.sync.configured;
+  private readonly router = inject(Router);
 
-  syncNow(): void {
+  activate(): void {
+    if (this.status() === 'needsAuth') {
+      void this.router.navigate(['/settings']);
+      return;
+    }
     void this.sync.syncNow();
   }
 }

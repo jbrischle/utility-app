@@ -1,0 +1,5 @@
+# Runtime state: SQLite database, uploaded photos, local backups, cert cache.
+pb_data/
+
+# Superuser credentials. See .env.example for the expected keys.
+.env

@@ -104,8 +104,8 @@
 <section class="card">
   <h2>Sync server</h2>
   <p class="muted">
-    Point this device at your self-hosted sync server to back up data and keep multiple devices in
-    sync. Leave empty to keep everything local (Phase&nbsp;1 behaviour).
+    Point this device at your PocketBase server to back it up and keep several devices in step.
+    Leave it empty to keep everything on this device — the app works the same either way.
   </p>
 
   <form (submit)="save(); $event.preventDefault()">
@@ -117,19 +117,19 @@
         type="url"
         inputmode="url"
         autocomplete="off"
-        placeholder="http://192.168.1.50:3000"
+        placeholder="https://your-machine.tailnet.ts.net"
         [ngModel]="serverUrl()"
         (ngModelChange)="serverUrl.set($event)"
       />
       <span class="muted small">
-        Use the address of your server on your home network. Do not expose it to the public internet
-        (no authentication).
+        Reachable from devices on your tailnet. It must be an https address, or the browser will
+        block the requests.
       </span>
     </div>
 
     <div class="row wrap">
-      <button type="submit" class="btn btn-primary" [disabled]="saving()">Save &amp; sync</button>
-      @if (enabled()) {
+      <button type="submit" class="btn btn-primary" [disabled]="saving()">Save</button>
+      @if (configured()) {
         <button type="button" class="btn btn-ghost" (click)="syncNow()" [disabled]="saving()">
           Sync now
         </button>
@@ -140,6 +140,59 @@
     </div>
   </form>
 </section>
+
+@if (configured()) {
+  <section class="card">
+    <h2>Account</h2>
+    @if (authenticated()) {
+      <p class="muted">
+        Signed in as <strong>{{ userEmail() }}</strong
+        >. Signing out stops syncing and leaves everything on this device untouched.
+      </p>
+      <button type="button" class="btn btn-ghost" (click)="signOut()">Sign out</button>
+    } @else {
+      <p class="muted">
+        Sign in with the account created for you in the PocketBase dashboard. Until you do, this
+        device keeps working normally and simply does not sync.
+      </p>
+      <form (submit)="signIn(); $event.preventDefault()">
+        <div class="field">
+          <label for="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            inputmode="email"
+            autocomplete="username"
+            [ngModel]="email()"
+            (ngModelChange)="email.set($event)"
+          />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event)"
+          />
+        </div>
+        @if (signInError()) {
+          <p class="error-text">{{ signInError() }}</p>
+        }
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [disabled]="signingIn() || !email().trim() || !password()"
+        >
+          {{ signingIn() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+    }
+  </section>
+}
 
 <section class="card status-card">
   <h2>Status</h2>
@@ -162,13 +215,14 @@
   </dl>
 </section>
 
-@if (enabled()) {
+@if (configured()) {
   <section class="card">
     <h2>Rebuild server data</h2>
     <p class="muted">
-      Normal syncs only send what changed since the last one. After you delete and recreate the
-      server database, run a full resync to push this device's entire dataset back up. Nothing is
-      deleted locally.
+      Normal syncs only send what changed since the last one. Run a full resync after rebuilding the
+      server database, or when pointing this device at a different PocketBase — otherwise it carries
+      over a position that server never reached and quietly skips older records. Nothing is deleted
+      locally.
     </p>
     <button type="button" class="btn btn-ghost" (click)="fullResync()" [disabled]="resyncing()">
       {{ resyncing() ? 'Resyncing…' : 'Full resync' }}

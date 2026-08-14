@@ -25,11 +25,18 @@ export class Settings {
   readonly status = this.sync.status;
   readonly lastSyncAt = this.sync.lastSyncAt;
   readonly lastError = this.sync.lastError;
-  readonly enabled = this.sync.enabled;
+  readonly configured = this.sync.configured;
+  readonly authenticated = this.sync.authenticated;
+  readonly userEmail = this.sync.userEmail;
 
   readonly serverUrl = signal<string>(this.sync.serverUrl());
   readonly saving = signal(false);
   readonly resyncing = signal(false);
+
+  readonly email = signal('');
+  readonly password = signal('');
+  readonly signingIn = signal(false);
+  readonly signInError = signal<string | null>(null);
 
   readonly households = this.store.households;
   readonly newName = signal('');
@@ -57,14 +64,18 @@ export class Settings {
     switch (this.status()) {
       case 'syncing':
         return 'Syncing…';
+      case 'photos':
+        return 'Syncing photos…';
       case 'offline':
         return 'Offline';
+      case 'needsAuth':
+        return 'Sign in needed';
       case 'error':
         return 'Error';
       case 'idle':
         return 'Connected';
       default:
-        return 'Disabled';
+        return 'Off';
     }
   });
 
@@ -80,6 +91,25 @@ export class Settings {
   async disable(): Promise<void> {
     this.serverUrl.set('');
     await this.save();
+  }
+
+  async signIn(): Promise<void> {
+    const email = this.email().trim();
+    if (!email || !this.password()) return;
+    this.signingIn.set(true);
+    this.signInError.set(null);
+    try {
+      await this.sync.login(email, this.password());
+      this.password.set('');
+    } catch (err) {
+      this.signInError.set(err instanceof Error ? err.message : 'Sign in failed.');
+    } finally {
+      this.signingIn.set(false);
+    }
+  }
+
+  signOut(): void {
+    this.sync.signOut();
   }
 
   syncNow(): void {

@@ -1,190 +1,242 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { RecordModel } from 'pocketbase';
 import { LocalStore } from '../data/local-store';
-import { Meter } from '../models/meter.model';
-import { Reading } from '../models/reading.model';
-import { Household } from '../models/household.model';
+import { PhotoTask } from '../data/db';
+import { ensurePersistentStorage } from '../data/persistent-storage';
+import { COLLECTIONS, PULL_ORDER } from '../models/collections';
+import { Cursor, isAuthError, PocketBaseGateway } from './pocketbase-gateway';
+import {
+  householdToRecord,
+  meterToRecord,
+  photoFilename,
+  readingToRecord,
+  recordToHousehold,
+  recordToMeter,
+  recordToReading,
+  remotePhotoFile,
+} from './sync-mapping';
 
-export type SyncStatus = 'disabled' | 'idle' | 'syncing' | 'offline' | 'error';
+export type SyncStatus = 'off' | 'needsAuth' | 'offline' | 'syncing' | 'photos' | 'idle' | 'error';
 
-const SERVER_URL_KEY = 'meter-tracker.serverUrl';
-/** Periodic background sync interval while online and enabled. */
+const SIGNED_OUT_KEY = 'meter-tracker.signedOut';
 const SYNC_INTERVAL_MS = 60_000;
 
-interface ChangesResponse {
-  serverTime: string;
-  meters: Meter[];
-  readings: Reading[];
-  households?: Household[];
-}
-
-/**
- * Sync engine (Phase 2). Reconciles the local IndexedDB store with a self-hosted
- * server using last-write-wins by `updatedAt`. It depends only on `LocalStore`
- * and `fetch`; Phase 1 data flows are untouched. With no server URL configured,
- * sync is disabled and the app behaves exactly as in Phase 1.
- */
 @Injectable({ providedIn: 'root' })
 export class SyncService {
   private readonly store = inject(LocalStore);
-
-  private readonly serverUrlSig = signal<string>(readStoredServerUrl());
-  private readonly statusSig = signal<SyncStatus>(readStoredServerUrl() ? 'idle' : 'disabled');
-  private readonly lastSyncAtSig = signal<string | null>(null);
-  private readonly lastErrorSig = signal<string | null>(null);
-
-  /** Configured server base URL (empty string = sync disabled). */
-  readonly serverUrl = this.serverUrlSig.asReadonly();
+  private readonly pb = inject(PocketBaseGateway);
+  readonly serverUrl = this.pb.baseUrl;
+  readonly userEmail = this.pb.userEmail;
+  readonly authenticated = this.pb.authenticated;
+  readonly configured = computed(() => this.pb.baseUrl().length > 0);
+  private readonly statusSig = signal<SyncStatus>('off');
   readonly status = this.statusSig.asReadonly();
+  private readonly lastSyncAtSig = signal<string | null>(null);
   readonly lastSyncAt = this.lastSyncAtSig.asReadonly();
+  private readonly lastErrorSig = signal<string | null>(null);
   readonly lastError = this.lastErrorSig.asReadonly();
-  readonly enabled = computed(() => this.serverUrlSig().length > 0);
-
   private inFlight = false;
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     window.addEventListener('online', () => void this.syncNow());
-    window.addEventListener('offline', () => {
-      if (this.enabled()) this.statusSig.set('offline');
-    });
-    if (this.enabled()) {
-      void this.refreshLastSyncAt();
-      this.startTimer();
-      void this.syncNow();
-    }
+    window.addEventListener('offline', () => this.refreshIdleStatus());
+    void this.start();
   }
 
-  /** Persists a new server URL and re-syncs (empty string disables sync). */
   async setServerUrl(url: string): Promise<void> {
-    const normalized = normalizeUrl(url);
-    this.serverUrlSig.set(normalized);
-    if (normalized) {
-      localStorage.setItem(SERVER_URL_KEY, normalized);
-    } else {
-      localStorage.removeItem(SERVER_URL_KEY);
-    }
+    this.pb.setBaseUrl(url);
     this.lastErrorSig.set(null);
-    if (normalized) {
-      await this.refreshLastSyncAt();
-      this.statusSig.set('idle');
+    if (this.configured()) {
       this.startTimer();
       await this.syncNow();
     } else {
       this.stopTimer();
-      this.lastSyncAtSig.set(null);
-      this.statusSig.set('disabled');
+      this.refreshIdleStatus();
     }
   }
 
-  /** Runs a full pull/push/photo reconcile. Safe to call repeatedly. */
-  async syncNow(): Promise<void> {
-    const base = this.serverUrlSig();
-    if (!base) {
-      this.statusSig.set('disabled');
-      return;
-    }
-    if (this.inFlight) return;
-    if (!navigator.onLine) {
-      this.statusSig.set('offline');
-      return;
-    }
+  async login(email: string, password: string): Promise<void> {
+    await this.pb.login(email, password);
+    localStorage.removeItem(SIGNED_OUT_KEY);
+    void ensurePersistentStorage();
+    this.lastErrorSig.set(null);
+    this.startTimer();
+    await this.syncNow();
+  }
 
+  signOut(): void {
+    this.pb.logout();
+    localStorage.setItem(SIGNED_OUT_KEY, '1');
+    this.stopTimer();
+    this.refreshIdleStatus();
+  }
+
+  async syncNow(): Promise<void> {
+    if (!this.canSync() || this.inFlight) return;
     this.inFlight = true;
     this.statusSig.set('syncing');
     try {
-      const since = await this.store.getLastSyncAt(base);
-
-      // 1. Pull remote changes and merge (last-write-wins).
-      const pull = await this.getJson<ChangesResponse>(
-        `${base}/sync/changes?since=${encodeURIComponent(since ?? '')}`,
-      );
-      await this.store.mergeRemote(pull.meters ?? [], pull.readings ?? [], pull.households ?? []);
-
-      // 2. Push local changes since the last cursor.
-      const local = await this.store.changedSince(since);
-      if (local.meters.length || local.readings.length || local.households.length) {
-        await this.postJson(`${base}/sync/changes`, {
-          meters: local.meters,
-          readings: local.readings,
-          households: local.households,
-        });
+      for (const collection of PULL_ORDER) {
+        await this.pullCollection(collection);
       }
+      await this.pushPending();
 
-      // 3. Reconcile photo blobs both directions.
-      await this.syncPhotos(base);
+      this.statusSig.set('photos');
+      await this.runPhotoTasks();
 
-      // 4. Advance the cursor to the server time observed at pull.
-      await this.store.setLastSyncAt(base, pull.serverTime);
-      this.lastSyncAtSig.set(pull.serverTime);
+      this.lastSyncAtSig.set(await this.store.lastSyncAt());
       this.lastErrorSig.set(null);
       this.statusSig.set('idle');
     } catch (err) {
-      if (!navigator.onLine) {
-        this.statusSig.set('offline');
-      } else {
-        this.statusSig.set('error');
-        this.lastErrorSig.set(err instanceof Error ? err.message : String(err));
-      }
+      this.handleFailure(err);
     } finally {
       this.inFlight = false;
     }
   }
 
-  /**
-   * Drops the sync cursor and syncs again, so the whole local dataset is pushed
-   * to the server. Needed after the server database has been rebuilt: without
-   * it the next push would only carry recent changes and the server would stay
-   * silently incomplete.
-   */
   async fullResync(): Promise<void> {
-    const base = this.serverUrlSig();
-    if (!base) return;
-    await this.store.clearLastSyncAt(base);
+    if (!this.configured()) return;
+    await this.store.clearCursors();
+    await this.store.markEverythingPending();
     this.lastSyncAtSig.set(null);
     await this.syncNow();
   }
 
-  private async syncPhotos(base: string): Promise<void> {
-    const [{ ids: serverIds }, localIds] = await Promise.all([
-      this.getJson<{ ids: string[] }>(`${base}/photos/manifest`),
-      this.store.allPhotoIds(),
-    ]);
-    const serverSet = new Set(serverIds ?? []);
-    const localSet = new Set(localIds);
+  private async start(): Promise<void> {
+    this.lastSyncAtSig.set(await this.store.lastSyncAt());
+    this.refreshIdleStatus();
+    if (!this.configured()) return;
+    await this.pb.refreshAuth();
+    this.startTimer();
+    await this.syncNow();
+  }
 
-    // Upload local photos the server is missing.
-    for (const id of localIds) {
-      if (serverSet.has(id)) continue;
-      const photo = await this.store.getPhoto(id);
-      if (!photo) continue;
-      const form = new FormData();
-      form.append('id', photo.id);
-      form.append('readingId', photo.readingId);
-      form.append('mimeType', photo.mimeType);
-      form.append('data', photo.data, `${photo.id}`);
-      const res = await fetch(`${base}/photos`, { method: 'POST', body: form });
-      if (!res.ok) throw new Error(`Photo upload failed (${res.status})`);
-    }
+  private async pullCollection(collection: string): Promise<void> {
+    let cursor: Cursor = await this.store.getCursor(collection);
+    for (;;) {
+      const page = await this.pb.listChanged(collection, cursor);
+      if (!page.records.length) return;
+      await this.mergePage(collection, page.records);
 
-    // Download referenced photos we don't have locally.
-    for (const { photoId, readingId } of await this.store.referencedPhotos()) {
-      if (localSet.has(photoId)) continue;
-      const res = await fetch(`${base}/photos/${encodeURIComponent(photoId)}`);
-      if (res.status === 404) continue;
-      if (!res.ok) throw new Error(`Photo download failed (${res.status})`);
-      const data = await res.blob();
-      await this.store.putPhoto({
-        id: photoId,
-        readingId,
-        mimeType: data.type || 'image/jpeg',
-        data,
-        createdAt: new Date().toISOString(),
-      });
+      const last = page.records.at(-1)!;
+      await this.store.setCursor(collection, last['updated'] as string, last.id);
+      if (!page.next) return;
+      cursor = page.next;
     }
   }
 
-  private async refreshLastSyncAt(): Promise<void> {
-    this.lastSyncAtSig.set(await this.store.getLastSyncAt(this.serverUrlSig()));
+  private async mergePage(collection: string, records: RecordModel[]): Promise<void> {
+    switch (collection) {
+      case COLLECTIONS.households:
+        await this.store.mergeHouseholds(records.map(recordToHousehold));
+        return;
+      case COLLECTIONS.meters:
+        await this.store.mergeMeters(records.map(recordToMeter));
+        return;
+      case COLLECTIONS.readings:
+        await this.store.mergeReadings(records.map(recordToReading));
+        await this.queueMissingPhotos(records);
+        return;
+    }
+  }
+
+  private async queueMissingPhotos(records: RecordModel[]): Promise<void> {
+    for (const record of records) {
+      const file = remotePhotoFile(record);
+      const photoId = (record['photoId'] as string) || '';
+      if (!file || !photoId) continue;
+      if (await this.store.hasPhoto(photoId)) continue;
+      await this.store.queuePhotoDownload(record.id, photoId, file);
+    }
+  }
+
+  private async pushPending(): Promise<void> {
+    const pending = await this.store.pendingRecords();
+    for (const household of pending.households) {
+      await this.pb.upsert(COLLECTIONS.households, household.id, householdToRecord(household));
+      await this.store.clearPending(COLLECTIONS.households, household.id);
+    }
+    for (const meter of pending.meters) {
+      await this.pb.upsert(COLLECTIONS.meters, meter.id, meterToRecord(meter));
+      await this.store.clearPending(COLLECTIONS.meters, meter.id);
+    }
+    for (const reading of pending.readings) {
+      await this.pb.upsert(COLLECTIONS.readings, reading.id, readingToRecord(reading));
+      await this.store.clearPending(COLLECTIONS.readings, reading.id);
+    }
+  }
+
+  private async runPhotoTasks(): Promise<void> {
+    for (const task of await this.store.photoTasks()) {
+      await this.runPhotoTask(task);
+      await this.store.clearPhotoTask(task.readingId);
+    }
+  }
+
+  private async runPhotoTask(task: PhotoTask): Promise<void> {
+    if (task.op === 'clear') {
+      await this.pb.clearPhoto(task.readingId);
+      return;
+    }
+    if (task.op === 'upload') {
+      const photo = task.photoId ? await this.store.getPhoto(task.photoId) : undefined;
+      if (!photo) return;
+      await this.pb.uploadPhoto(
+        task.readingId,
+        photo.data,
+        photoFilename(photo.id, photo.mimeType),
+      );
+      return;
+    }
+    if (!task.photoId || !task.remoteFile) return;
+    const blob = await this.pb.downloadPhoto(task.readingId, task.remoteFile);
+    await this.store.putPhoto({
+      id: task.photoId,
+      readingId: task.readingId,
+      mimeType: blob.type || 'image/jpeg',
+      data: blob,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  private canSync(): boolean {
+    if (!this.configured() || !this.pb.authenticated()) {
+      this.refreshIdleStatus();
+      return false;
+    }
+    if (!navigator.onLine) {
+      this.statusSig.set('offline');
+      return false;
+    }
+    return true;
+  }
+
+  private refreshIdleStatus(): void {
+    if (!this.configured()) {
+      this.statusSig.set('off');
+      return;
+    }
+    if (!this.pb.authenticated()) {
+      this.statusSig.set(localStorage.getItem(SIGNED_OUT_KEY) ? 'off' : 'needsAuth');
+      return;
+    }
+    this.statusSig.set(navigator.onLine ? 'idle' : 'offline');
+  }
+
+  private handleFailure(err: unknown): void {
+    if (isAuthError(err)) {
+      this.pb.logout();
+      this.statusSig.set('needsAuth');
+      this.lastErrorSig.set('Session expired. Sign in again to resume syncing.');
+      return;
+    }
+    if (!navigator.onLine) {
+      this.statusSig.set('offline');
+      return;
+    }
+    this.statusSig.set('error');
+    this.lastErrorSig.set(err instanceof Error ? err.message : String(err));
   }
 
   private startTimer(): void {
@@ -200,32 +252,4 @@ export class SyncService {
       this.timer = null;
     }
   }
-
-  private async getJson<T>(url: string): Promise<T> {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Request failed (${res.status})`);
-    return (await res.json()) as T;
-  }
-
-  private async postJson(url: string, body: unknown): Promise<void> {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`Request failed (${res.status})`);
-  }
-}
-
-function readStoredServerUrl(): string {
-  try {
-    return normalizeUrl(localStorage.getItem(SERVER_URL_KEY) ?? '');
-  } catch {
-    return '';
-  }
-}
-
-/** Trims and removes any trailing slash so endpoints concatenate cleanly. */
-function normalizeUrl(url: string): string {
-  return url.trim().replace(/\/+$/, '');
 }
