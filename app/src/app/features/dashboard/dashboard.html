@@ -1,6 +1,5 @@
 <div class="row-between wrap page-head">
   <h1>Dashboard</h1>
-  <a class="btn btn-primary" routerLink="/meters/new">+ Add meter</a>
 </div>
 
 @if (ready() && !hasMeters()) {
@@ -17,13 +16,13 @@
     <section class="household">
       <div class="card household-summary">
         <button
-          type="button"
-          class="household-toggle"
-          [attr.aria-expanded]="isExpanded(group.id)"
-          [attr.aria-controls]="'meters-' + group.id"
           (click)="toggle(group.id)"
+          [attr.aria-controls]="'meters-' + group.id"
+          [attr.aria-expanded]="isExpanded(group.id)"
+          class="household-toggle"
+          type="button"
         >
-          <span class="chevron" [class.chevron-open]="isExpanded(group.id)" aria-hidden="true"
+          <span [class.chevron-open]="isExpanded(group.id)" aria-hidden="true" class="chevron"
             >›</span
           >
           <h2 class="household-name">{{ group.name }}</h2>
@@ -66,7 +65,7 @@
       </div>
 
       @if (isExpanded(group.id) && group.cards.length > 0) {
-        <div class="meter-grid" [id]="'meters-' + group.id">
+        <div [id]="'meters-' + group.id" class="meter-grid">
           @for (card of group.cards; track card.meter.id) {
             <div class="card meter-card">
               <a [routerLink]="['/meters', card.meter.id]" class="meter-card-body">
