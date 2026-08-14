@@ -95,15 +95,22 @@
 .sync-idle .sync-dot {
   background: var(--color-success, #4ade80);
 }
-.sync-syncing .sync-dot {
+.sync-syncing .sync-dot,
+.sync-photos .sync-dot {
   background: var(--color-primary, #4f8cff);
   animation: sync-pulse 1s ease-in-out infinite;
 }
 .sync-offline .sync-dot {
   background: #94a3b8;
 }
-.sync-error .sync-dot {
+.sync-error .sync-dot,
+.sync-needsAuth .sync-dot {
   background: var(--color-danger, #f87171);
+}
+
+.sync-chip.sync-attention {
+  color: var(--color-danger, #f87171);
+  border-color: var(--color-danger, #f87171);
 }
 
 @keyframes sync-pulse {

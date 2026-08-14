@@ -1,0 +1,41 @@
+services:
+  pocketbase:
+    image:          ghcr.io/muchobien/pocketbase:0.39.10
+    container_name: pocketbase
+    restart:        unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      - TZ=Europe/Zurich
+    env_file:
+      - .env
+    command:
+      - --migrationsDir=/pb_migrations
+    volumes:
+      # pb_data holds data.db, uploaded photos under storage/, and backups/.
+      - ./pb_data:/pb_data
+      # Writable: --automigrate is on by default, so schema changes made in the
+      # Dashboard are written here as migration files to copy back into git.
+      - ./pb_migrations:/pb_migrations
+      # Intentionally empty. Keeps a server-side last-write-wins guard a
+      # drop-in file rather than a container reconfiguration.
+      - ./pb_hooks:/pb_hooks
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:8090/api/health",
+        ]
+      interval:     30s
+      timeout:      10s
+      retries:      3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
