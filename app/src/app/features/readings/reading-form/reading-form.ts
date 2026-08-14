@@ -205,9 +205,8 @@ export class ReadingForm {
   }
 
   private async persist(): Promise<void> {
-    const readingId = this.readingId();
     const meterId = this.meterId();
-    if (!readingId || !meterId) {
+    if (!meterId) {
       return;
     }
 
@@ -221,7 +220,8 @@ export class ReadingForm {
       note: raw.note,
     };
     try {
-      if (this.isEdit()) {
+      const readingId = this.readingId();
+      if (readingId && this.isEdit()) {
         let photoChange: { photo: Blob | null } | undefined;
         if (this.newPhoto) {
           photoChange = { photo: this.newPhoto };
