@@ -1,7 +1,3 @@
-<div class="page-head">
-  <h1>Settings</h1>
-</div>
-
 <section class="card">
   <h2>Households</h2>
   <p class="muted">
@@ -16,26 +12,26 @@
           @if (editingId() === h.id) {
             <div class="household-edit">
               <input
+                (ngModelChange)="editName.set($event)"
+                [ngModel]="editName()"
                 aria-label="Household name"
                 autocomplete="off"
                 type="text"
-                [ngModel]="editName()"
-                (ngModelChange)="editName.set($event)"
               />
               <select
-                aria-label="Household role"
-                [ngModel]="editRole()"
                 (ngModelChange)="editRole.set($event)"
+                [ngModel]="editRole()"
+                aria-label="Household role"
               >
                 @for (role of roles; track role) {
                   <option [value]="role">{{ roleLabels[role] }}</option>
                 }
               </select>
               <div class="row wrap">
-                <button type="button" class="btn btn-primary btn-sm" (click)="saveEdit()">
+                <button (click)="saveEdit()" class="btn btn-primary btn-sm" type="button">
                   Save
                 </button>
-                <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEdit()">
+                <button (click)="cancelEdit()" class="btn btn-ghost btn-sm" type="button">
                   Cancel
                 </button>
               </div>
@@ -50,13 +46,13 @@
               </span>
             </div>
             <div class="row wrap">
-              <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit(h)">
+              <button (click)="startEdit(h)" class="btn btn-ghost btn-sm" type="button">
                 Rename
               </button>
               <button
-                type="button"
-                class="btn btn-danger btn-sm"
                 (click)="confirmDeleteId.set(h.id)"
+                class="btn btn-danger btn-sm"
+                type="button"
               >
                 Delete
               </button>
@@ -69,33 +65,33 @@
     <p class="muted small">No households yet. All meters show as unassigned on the dashboard.</p>
   }
 
-  <form class="household-add" (submit)="addHousehold(); $event.preventDefault()">
+  <form (submit)="addHousehold(); $event.preventDefault()" class="household-add">
     <div class="field">
       <label for="householdName">New household</label>
       <input
+        (ngModelChange)="newName.set($event)"
+        [ngModel]="newName()"
+        autocomplete="off"
         id="householdName"
         name="householdName"
-        type="text"
-        autocomplete="off"
         placeholder="e.g. Second floor"
-        [ngModel]="newName()"
-        (ngModelChange)="newName.set($event)"
+        type="text"
       />
     </div>
     <div class="field">
       <label for="householdRole">Role</label>
       <select
+        (ngModelChange)="newRole.set($event)"
+        [ngModel]="newRole()"
         id="householdRole"
         name="householdRole"
-        [ngModel]="newRole()"
-        (ngModelChange)="newRole.set($event)"
       >
         @for (role of roles; track role) {
           <option [value]="role">{{ roleLabels[role] }}</option>
         }
       </select>
     </div>
-    <button type="submit" class="btn btn-primary" [disabled]="!newName().trim()">
+    <button [disabled]="!newName().trim()" class="btn btn-primary" type="submit">
       Add household
     </button>
   </form>
@@ -112,14 +108,14 @@
     <div class="field">
       <label for="serverUrl">Server URL</label>
       <input
-        id="serverUrl"
-        name="serverUrl"
-        type="url"
-        inputmode="url"
-        autocomplete="off"
-        placeholder="https://your-machine.tailnet.ts.net"
-        [ngModel]="serverUrl()"
         (ngModelChange)="serverUrl.set($event)"
+        [ngModel]="serverUrl()"
+        autocomplete="off"
+        id="serverUrl"
+        inputmode="url"
+        name="serverUrl"
+        placeholder="https://your-machine.tailnet.ts.net"
+        type="url"
       />
       <span class="muted small">
         Reachable from devices on your tailnet. It must be an https address, or the browser will
@@ -128,12 +124,12 @@
     </div>
 
     <div class="row wrap">
-      <button type="submit" class="btn btn-primary" [disabled]="saving()">Save</button>
+      <button [disabled]="saving()" class="btn btn-primary" type="submit">Save</button>
       @if (configured()) {
-        <button type="button" class="btn btn-ghost" (click)="syncNow()" [disabled]="saving()">
+        <button (click)="syncNow()" [disabled]="saving()" class="btn btn-ghost" type="button">
           Sync now
         </button>
-        <button type="button" class="btn btn-danger" (click)="disable()" [disabled]="saving()">
+        <button (click)="disable()" [disabled]="saving()" class="btn btn-danger" type="button">
           Disable sync
         </button>
       }
@@ -149,7 +145,7 @@
         Signed in as <strong>{{ userEmail() }}</strong
         >. Signing out stops syncing and leaves everything on this device untouched.
       </p>
-      <button type="button" class="btn btn-ghost" (click)="signOut()">Sign out</button>
+      <button (click)="signOut()" class="btn btn-ghost" type="button">Sign out</button>
     } @else {
       <p class="muted">
         Sign in with the account created for you in the PocketBase dashboard. Until you do, this
@@ -159,33 +155,33 @@
         <div class="field">
           <label for="email">Email</label>
           <input
+            (ngModelChange)="email.set($event)"
+            [ngModel]="email()"
+            autocomplete="username"
             id="email"
+            inputmode="email"
             name="email"
             type="email"
-            inputmode="email"
-            autocomplete="username"
-            [ngModel]="email()"
-            (ngModelChange)="email.set($event)"
           />
         </div>
         <div class="field">
           <label for="password">Password</label>
           <input
+            (ngModelChange)="password.set($event)"
+            [ngModel]="password()"
+            autocomplete="current-password"
             id="password"
             name="password"
             type="password"
-            autocomplete="current-password"
-            [ngModel]="password()"
-            (ngModelChange)="password.set($event)"
           />
         </div>
         @if (signInError()) {
           <p class="error-text">{{ signInError() }}</p>
         }
         <button
-          type="submit"
-          class="btn btn-primary"
           [disabled]="signingIn() || !email().trim() || !password()"
+          class="btn btn-primary"
+          type="submit"
         >
           {{ signingIn() ? 'Signing in…' : 'Sign in' }}
         </button>
@@ -198,7 +194,7 @@
   <h2>Status</h2>
   <div class="status-row">
     <span class="status-pill status-{{ status() }}">
-      <span class="status-dot" aria-hidden="true"></span>{{ statusLabel() }}
+      <span aria-hidden="true" class="status-dot"></span>{{ statusLabel() }}
     </span>
   </div>
   <dl class="status-list">
@@ -224,15 +220,15 @@
       over a position that server never reached and quietly skips older records. Nothing is deleted
       locally.
     </p>
-    <button type="button" class="btn btn-ghost" (click)="fullResync()" [disabled]="resyncing()">
+    <button (click)="fullResync()" [disabled]="resyncing()" class="btn btn-ghost" type="button">
       {{ resyncing() ? 'Resyncing…' : 'Full resync' }}
     </button>
   </section>
 }
 
 @if (pendingDelete(); as household) {
-  <div class="modal-backdrop" (click)="confirmDeleteId.set(null)">
-    <div class="modal card" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+  <div (click)="confirmDeleteId.set(null)" class="modal-backdrop">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="modal card" role="alertdialog">
       <h3>Delete this household?</h3>
       <p>
         “{{ household.name }}” will be removed. Its
@@ -241,10 +237,10 @@
         stay untouched and show as unassigned.
       </p>
       <div class="row wrap">
-        <button type="button" class="btn btn-ghost" (click)="confirmDeleteId.set(null)">
+        <button (click)="confirmDeleteId.set(null)" class="btn btn-ghost" type="button">
           Cancel
         </button>
-        <button type="button" class="btn btn-danger" (click)="deleteHousehold(household.id)">
+        <button (click)="deleteHousehold(household.id)" class="btn btn-danger" type="button">
           Delete household
         </button>
       </div>
