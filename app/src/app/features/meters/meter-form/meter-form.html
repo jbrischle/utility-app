@@ -74,7 +74,7 @@
       <button [disabled]="meterForm().invalid()" class="btn btn-primary" type="submit">
         {{ isEdit() ? 'Save changes' : 'Create meter' }}
       </button>
-      <a [routerLink]="isEdit() ? ['/meters', id] : ['/meters']" class="btn btn-ghost">Cancel</a>
+      <a [routerLink]="isEdit() ? ['/meters', id()] : ['/meters']" class="btn btn-ghost">Cancel</a>
     </div>
   </form>
 }

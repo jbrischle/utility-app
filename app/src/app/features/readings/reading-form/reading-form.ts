@@ -42,23 +42,12 @@ export class ReadingForm {
     min(p.consumed, 0, { message: 'The reading must be zero or greater.' });
     required(p.readAt, { message: 'Pick a date.' });
   });
-  readonly isElectricity = computed(() => {
-    const meter = this.meter();
-    if (meter) {
-      return this.meter()?.type === 'electricity';
-    }
-    return false;
-  });
   /** Production is validated manually since it only applies to electricity meters. */
   readonly producedInvalid = computed(
     () => this.isElectricity() && (this.model().produced === null || this.model().produced! < 0),
   );
-  private readonly store = inject(LocalStore);
-  private readonly route = inject(ActivatedRoute);
-  private readonly routerParamMap = toSignal(this.route.paramMap);
-  readonly readingId = computed(() => this.routerParamMap()?.get('id'));
   readonly isEdit = computed(() => !!this.readingId());
-  readonly meterId = computed(() => this.routerParamMap()?.get('meterId'));
+  private readonly store = inject(LocalStore);
   readonly meter = computed(() => {
     const meterId = this.meterId();
     if (meterId) {
@@ -66,6 +55,17 @@ export class ReadingForm {
     }
     return undefined;
   });
+  readonly isElectricity = computed(() => {
+    const meter = this.meter();
+    if (meter) {
+      return this.meter()?.type === 'electricity';
+    }
+    return false;
+  });
+  private readonly route = inject(ActivatedRoute);
+  private readonly routerParamMap = toSignal(this.route.paramMap);
+  readonly readingId = computed(() => this.routerParamMap()?.get('id'));
+  readonly meterId = computed(() => this.routerParamMap()?.get('meterId'));
   private readonly router = inject(Router);
   private newPhoto: Blob | null = null;
   private existingPhotoId: string | null = null;
@@ -75,7 +75,7 @@ export class ReadingForm {
   private readonly valueInput = viewChild<ElementRef<HTMLInputElement>>('valueInput');
 
   constructor() {
-    if (!this.isEdit) {
+    if (!this.isEdit()) {
       afterNextRender(() => this.valueInput()?.nativeElement.focus());
     }
     effect(() => {
@@ -132,7 +132,6 @@ export class ReadingForm {
     this.showWarning.set(false);
     void this.persist();
   }
-
   cancelWarning(): void {
     this.showWarning.set(false);
   }
@@ -234,7 +233,7 @@ export class ReadingForm {
         await this.store.addReading(input, this.newPhoto ?? undefined);
       }
       this.revokePreview();
-      await this.router.navigate(['/meters', this.meterId]);
+      await this.router.navigate(['/meters', this.meterId()]);
     } finally {
       this.saving.set(false);
     }
